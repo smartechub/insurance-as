@@ -1,0 +1,157 @@
+import { Router, type IRouter, type Request, type Response } from "express";
+import { db } from "@workspace/db";
+import { claimsTable, documentsTable } from "@workspace/db/schema";
+import { eq, ilike, or, desc, asc, count, sql } from "drizzle-orm";
+
+const router: IRouter = Router();
+
+function requireAuth(req: Request, res: Response, next: () => void) {
+  if (!(req.session as any).userId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  next();
+}
+
+router.get("/stats", requireAuth, async (req: Request, res: Response) => {
+  const allClaims = await db.select({ claimStatus: claimsTable.claimStatus }).from(claimsTable);
+  const total = allClaims.length;
+  const pending = allClaims.filter((c) => c.claimStatus === "Pending").length;
+  const processing = allClaims.filter((c) => c.claimStatus === "Processing").length;
+  const approved = allClaims.filter((c) => c.claimStatus === "Approved").length;
+  const rejected = allClaims.filter((c) => c.claimStatus === "Rejected").length;
+  const settled = allClaims.filter((c) => c.claimStatus === "Settled").length;
+
+  const byStatusRaw = await db
+    .select({ status: claimsTable.claimStatus, count: count() })
+    .from(claimsTable)
+    .groupBy(claimsTable.claimStatus);
+
+  const byMonthRaw = await db.execute(
+    sql`SELECT TO_CHAR("created_at", 'Mon YYYY') as month, COUNT(*) as count FROM claims GROUP BY TO_CHAR("created_at", 'Mon YYYY') ORDER BY MIN("created_at")`
+  );
+
+  res.json({
+    total,
+    pending,
+    processing,
+    approved,
+    rejected,
+    settled,
+    claimsByStatus: byStatusRaw.map((r) => ({ status: r.status, count: Number(r.count) })),
+    claimsByMonth: (byMonthRaw.rows as any[]).map((r) => ({ month: r.month, count: Number(r.count) })),
+  });
+});
+
+router.get("/", requireAuth, async (req: Request, res: Response) => {
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 10;
+  const search = (req.query.search as string) || "";
+  const status = (req.query.status as string) || "";
+  const sortBy = (req.query.sortBy as string) || "createdAt";
+  const sortOrder = (req.query.sortOrder as string) || "desc";
+  const offset = (page - 1) * limit;
+
+  const session = req.session as any;
+  const userId = session.userId;
+  const userRole = session.userRole;
+
+  const conditions: any[] = [];
+  if (search) {
+    conditions.push(
+      or(
+        ilike(claimsTable.employeeId, `%${search}%`),
+        ilike(claimsTable.employeeName, `%${search}%`),
+        ilike(claimsTable.assetCode, `%${search}%`),
+        ilike(claimsTable.serialNo, `%${search}%`)
+      )
+    );
+  }
+  if (status) {
+    conditions.push(eq(claimsTable.claimStatus, status as any));
+  }
+  if (userRole !== "admin") {
+    conditions.push(eq(claimsTable.createdBy, userId));
+  }
+
+  const whereClause = conditions.length > 0 ? conditions.reduce((a, b) => sql`${a} AND ${b}`) : undefined;
+
+  const orderCol = sortBy === "createdAt" ? claimsTable.createdAt : sortBy === "claimStatus" ? claimsTable.claimStatus : claimsTable.createdAt;
+  const orderFn = sortOrder === "asc" ? asc : desc;
+
+  const [totalResult, rows] = await Promise.all([
+    db.select({ count: count() }).from(claimsTable).where(whereClause),
+    db.select().from(claimsTable).where(whereClause).orderBy(orderFn(orderCol)).limit(limit).offset(offset),
+  ]);
+
+  const total = Number(totalResult[0]?.count ?? 0);
+  res.json({
+    claims: rows.map(serializeClaim),
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  });
+});
+
+router.post("/", requireAuth, async (req: Request, res: Response) => {
+  const session = req.session as any;
+  const data = {
+    ...req.body,
+    claimStatus: req.body.claimStatus || "Pending",
+    employeeFileChargeStatus: req.body.employeeFileChargeStatus || "Pending",
+    createdBy: session.userId,
+  };
+  const [claim] = await db.insert(claimsTable).values(data).returning();
+  res.status(201).json(serializeClaim(claim));
+});
+
+router.get("/:id", requireAuth, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const [claim] = await db.select().from(claimsTable).where(eq(claimsTable.id, id));
+  if (!claim) {
+    res.status(404).json({ error: "Claim not found" });
+    return;
+  }
+  const documents = await db.select().from(documentsTable).where(eq(documentsTable.claimId, id));
+  res.json({ ...serializeClaim(claim), documents });
+});
+
+router.put("/:id", requireAuth, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const [existing] = await db.select().from(claimsTable).where(eq(claimsTable.id, id));
+  if (!existing) {
+    res.status(404).json({ error: "Claim not found" });
+    return;
+  }
+  const [updated] = await db
+    .update(claimsTable)
+    .set({ ...req.body, updatedAt: new Date() })
+    .where(eq(claimsTable.id, id))
+    .returning();
+  res.json(serializeClaim(updated));
+});
+
+router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const [existing] = await db.select().from(claimsTable).where(eq(claimsTable.id, id));
+  if (!existing) {
+    res.status(404).json({ error: "Claim not found" });
+    return;
+  }
+  await db.delete(claimsTable).where(eq(claimsTable.id, id));
+  res.json({ message: "Claim deleted successfully" });
+});
+
+function serializeClaim(claim: any) {
+  return {
+    ...claim,
+    payableAmount: claim.payableAmount ? Number(claim.payableAmount) : null,
+    recoverAmount: claim.recoverAmount ? Number(claim.recoverAmount) : null,
+    fileCharge: claim.fileCharge ? Number(claim.fileCharge) : null,
+    createdAt: claim.createdAt?.toISOString(),
+    updatedAt: claim.updatedAt?.toISOString(),
+  };
+}
+
+export default router;

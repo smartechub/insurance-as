@@ -1,22 +1,28 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: IT Asset Insurance Management API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: claims
+    description: Claim management operations
+  - name: documents
+    description: Document management operations
+  - name: users
+    description: User management operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +30,393 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/forgot-password:
+    post:
+      operationId: forgotPassword
+      tags: [auth]
+      summary: Request password reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+      responses:
+        "200":
+          description: Reset email sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/reset-password:
+    post:
+      operationId: resetPassword
+      tags: [auth]
+      summary: Reset password with token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /claims:
+    get:
+      operationId: getClaims
+      tags: [claims]
+      summary: Get all claims
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+      responses:
+        "200":
+          description: List of claims
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimListResponse"
+
+    post:
+      operationId: createClaim
+      tags: [claims]
+      summary: Create a new claim
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClaimRequest"
+      responses:
+        "201":
+          description: Claim created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Claim"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /claims/stats:
+    get:
+      operationId: getClaimStats
+      tags: [claims]
+      summary: Get claim statistics
+      responses:
+        "200":
+          description: Claim statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimStats"
+
+  /claims/{id}:
+    get:
+      operationId: getClaimById
+      tags: [claims]
+      summary: Get a claim by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Claim details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimWithDocuments"
+        "404":
+          description: Claim not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      operationId: updateClaim
+      tags: [claims]
+      summary: Update a claim
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClaimRequest"
+      responses:
+        "200":
+          description: Updated claim
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Claim"
+        "404":
+          description: Claim not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteClaim
+      tags: [claims]
+      summary: Delete a claim
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Claim deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          description: Claim not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /documents/claim/{claimId}:
+    get:
+      operationId: getDocumentsByClaim
+      tags: [documents]
+      summary: Get all documents for a claim
+      parameters:
+        - name: claimId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+
+  /documents/{id}:
+    delete:
+      operationId: deleteDocument
+      tags: [documents]
+      summary: Delete a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Document deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users:
+    get:
+      operationId: getUsers
+      tags: [users]
+      summary: Get all users (admin only)
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new user (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{id}:
+    put:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a user (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +427,331 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+      required:
+        - email
+        - password
+
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+        - email
+
+    ResetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+        password:
+          type: string
+          minLength: 6
+      required:
+        - token
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        message:
+          type: string
+      required:
+        - user
+        - message
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - email
+        - role
+
+    CreateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        role:
+          type: string
+          enum: [admin, user]
+      required:
+        - name
+        - email
+        - password
+        - role
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        role:
+          type: string
+          enum: [admin, user]
+
+    ClaimStatus:
+      type: string
+      enum:
+        - Pending
+        - Processing
+        - Approved
+        - Rejected
+        - Settled
+
+    AssetType:
+      type: string
+      enum:
+        - Laptop
+        - Desktop
+        - Other
+
+    Claim:
+      type: object
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: string
+        employeeName:
+          type: string
+        assetCode:
+          type: string
+        assetType:
+          $ref: "#/components/schemas/AssetType"
+        serialNo:
+          type: string
+        damageDate:
+          type: string
+        repairDate:
+          type: string
+        effectedPart:
+          type: string
+        caseId:
+          type: string
+        payableAmount:
+          type: number
+        recoverAmount:
+          type: number
+        fileCharge:
+          type: number
+        claimStatus:
+          $ref: "#/components/schemas/ClaimStatus"
+        employeeFileChargeStatus:
+          type: string
+        remark:
+          type: string
+        createdBy:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - employeeId
+        - employeeName
+        - assetCode
+        - claimStatus
+
+    ClaimWithDocuments:
+      allOf:
+        - $ref: "#/components/schemas/Claim"
+        - type: object
+          properties:
+            documents:
+              type: array
+              items:
+                $ref: "#/components/schemas/Document"
+
+    CreateClaimRequest:
+      type: object
+      properties:
+        employeeId:
+          type: string
+        employeeName:
+          type: string
+        assetCode:
+          type: string
+        assetType:
+          $ref: "#/components/schemas/AssetType"
+        serialNo:
+          type: string
+        damageDate:
+          type: string
+        repairDate:
+          type: string
+        effectedPart:
+          type: string
+        caseId:
+          type: string
+        payableAmount:
+          type: number
+        recoverAmount:
+          type: number
+        fileCharge:
+          type: number
+        claimStatus:
+          $ref: "#/components/schemas/ClaimStatus"
+        employeeFileChargeStatus:
+          type: string
+        remark:
+          type: string
+      required:
+        - employeeId
+        - employeeName
+        - assetCode
+
+    UpdateClaimRequest:
+      type: object
+      properties:
+        employeeId:
+          type: string
+        employeeName:
+          type: string
+        assetCode:
+          type: string
+        assetType:
+          $ref: "#/components/schemas/AssetType"
+        serialNo:
+          type: string
+        damageDate:
+          type: string
+        repairDate:
+          type: string
+        effectedPart:
+          type: string
+        caseId:
+          type: string
+        payableAmount:
+          type: number
+        recoverAmount:
+          type: number
+        fileCharge:
+          type: number
+        claimStatus:
+          $ref: "#/components/schemas/ClaimStatus"
+        employeeFileChargeStatus:
+          type: string
+        remark:
+          type: string
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: integer
+        claimId:
+          type: integer
+        fileName:
+          type: string
+        filePath:
+          type: string
+        fileType:
+          type: string
+        documentType:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - claimId
+        - fileName
+        - filePath
+        - fileType
+
+    ClaimStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        pending:
+          type: integer
+        processing:
+          type: integer
+        approved:
+          type: integer
+        rejected:
+          type: integer
+        settled:
+          type: integer
+        claimsByMonth:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+              count:
+                type: integer
+        claimsByStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              count:
+                type: integer
+      required:
+        - total
+        - pending
+        - processing
+        - approved
+        - rejected
+        - settled

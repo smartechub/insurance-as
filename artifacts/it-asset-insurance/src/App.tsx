@@ -1,0 +1,50 @@
+import { Switch, Route, Router as WouterRouter } from "wouter";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import NotFound from "@/pages/not-found";
+
+// Pages
+import Login from "@/pages/login";
+import ForgotPassword from "@/pages/forgot-password";
+import Dashboard from "@/pages/dashboard";
+import Claims from "@/pages/claims";
+import CreateClaim from "@/pages/create-claim";
+import ClaimDetail from "@/pages/claim-detail";
+import Users from "@/pages/users";
+
+const queryClient = new QueryClient();
+
+function Router() {
+  return (
+    <Switch>
+      <Route path="/login" component={Login} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      
+      {/* Protected Routes rendered within AppLayout */}
+      <Route path="/" component={Dashboard} />
+      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/claims" component={Claims} />
+      <Route path="/claims/new" component={CreateClaim} />
+      <Route path="/claims/:id" component={ClaimDetail} />
+      <Route path="/users" component={Users} />
+      
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <Router />
+        </WouterRouter>
+        <Toaster />
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;

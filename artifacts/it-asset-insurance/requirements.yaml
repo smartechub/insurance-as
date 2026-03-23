@@ -1,0 +1,17 @@
+packages:
+  "framer-motion": "Smooth page transitions and component animations"
+  "recharts": "Beautiful charts for the dashboard statistics"
+  "date-fns": "Easy and consistent date formatting"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility to merge tailwind classes without style conflicts"
+  "react-hook-form": "Form state management and validation"
+  "@hookform/resolvers": "Zod resolver for react-hook-form"
+
+images:
+  - path: "artifacts/it-asset-insurance/public/images/login-bg.png"
+    description: "Abstract geometric glassmorphism with soft indigo and cyan light leaks, clean professional 3D render, enterprise feel"
+    aspect_ratio: "16:9"
+
+notes:
+  - "The app relies heavily on the pre-generated @workspace/api-client-react hooks."
+  - "Document uploads are handled via a custom fetch mutation to POST /api/documents/upload/:claimId because it was missing from the generated hooks."

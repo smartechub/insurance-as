@@ -1,0 +1,281 @@
+## 🏷 Project Name
+
+IT Asset Insurance Management System
+
+---
+
+## 🎯 Project Overview
+
+Build a full-stack web-based IT Asset Insurance Management System that allows organizations to manage employee asset insurance claims, including claim creation, tracking, document uploads, and status management.
+
+The system should support Admin and User roles with secure authentication, dashboard analytics, and document handling.
+
+---
+
+## 💻 Target Platform
+
+* Web Application (optimized for desktop usage on local Windows systems)
+
+---
+
+## 🌐 Operating Environment
+
+* Online (runs in browser, even on local network)
+* Use local hosting (localhost) during development
+
+---
+
+## ☁️ Hosting
+
+* Initial: Replit deployment or local hosting
+* Future-ready for cloud (AWS / Firebase compatible)
+
+---
+
+## 🎨 UI/UX Design
+
+* Style: Clean Admin Dashboard (like ERP / Zoho / ServiceNow)
+* Layout:
+
+  * Sidebar navigation
+  * Top header
+  * Responsive tables and forms
+* Theme: Light modern UI with professional colors
+
+---
+
+## 👥 User Roles
+
+### Admin
+
+* Manage all claims
+* Update claim status
+* View dashboard analytics
+* Access all documents
+
+### User
+
+* Create claims
+* View own claims
+* Upload documents
+
+---
+
+## 🔐 Authentication System
+
+* Email + Password login
+* Secure password hashing (bcrypt)
+* Forgot Password:
+
+  * Email-based reset link
+* Session-based authentication (JWT or cookies)
+
+---
+
+## 📊 Dashboard Features
+
+Display the following metrics:
+
+* Total Claims
+* Pending Claims
+* Processing Claims
+* Settled Claims
+
+Include charts (optional):
+
+* Claims by status
+* Claims over time
+
+---
+
+## 📋 Claim List Page
+
+Display table with columns:
+
+* Employee ID
+* Employee Name
+* Asset Code
+* Claim Status
+* Payable Amount
+* Serial No
+
+Features:
+
+* Pagination
+* Search & filter
+* Sort by date/status
+
+---
+
+## ➕ Create Claim Page
+
+Form fields:
+
+### Basic Details
+
+* Employee ID
+* Employee Name
+* Asset Code
+* Asset Type (Dropdown: Laptop, Desktop, Other)
+* Serial No
+
+### Dates
+
+* Damage Date (dd-mm-yyyy)
+* Repair Date (dd-mm-yyyy)
+
+### Claim Details
+
+* Effected Part
+* Case ID
+* Payable Amount
+* Recover Amount
+* File Charge
+* Claim Status (Default: Pending)
+* Employee File Charge Status (Default: Pending)
+* Remark
+
+---
+
+## 📎 File Upload System
+
+Allow uploads for:
+
+* Damage Images (ZIP)
+* Repair Images (ZIP)
+* Quotation (file)
+* Invoice (file)
+* Claim Form (file)
+* Other Documents (multiple upload support with add button)
+
+### File Handling Rules:
+
+* Store files locally in `/uploads` folder
+* Save file paths in database
+
+### File Preview Support:
+
+Allow preview ONLY for:
+
+* PDF
+* JPG
+* JPEG
+* PNG
+
+---
+
+## 🔄 Claim Status Flow
+
+Define statuses:
+
+* Pending
+* Processing
+* Approved
+* Rejected
+* Settled
+
+---
+
+## 🗄 Database Design
+
+Use relational database (SQLite for local, scalable to PostgreSQL)
+
+### Tables:
+
+#### Users
+
+* id
+* name
+* email
+* password
+* role (admin/user)
+
+#### Claims
+
+* id
+* employee_id
+* employee_name
+* asset_code
+* asset_type
+* serial_no
+* damage_date
+* repair_date
+* effected_part
+* case_id
+* payable_amount
+* recover_amount
+* file_charge
+* claim_status
+* employee_file_charge_status
+* remark
+
+#### Documents
+
+* id
+* claim_id (foreign key)
+* file_name
+* file_path
+* file_type
+
+---
+
+## ⚙️ Backend Requirements
+
+* Framework: Node.js (Express) OR Python Flask (choose best)
+* REST API structure
+* CRUD operations for claims
+* File upload handling (Multer if Node.js)
+
+---
+
+## 🖥 Frontend Requirements
+
+* Framework: React (recommended)
+* Pages:
+
+  * Login
+  * Dashboard
+  * Claim List
+  * Create Claim
+  * Claim Details
+
+---
+
+## 🔍 Additional Features
+
+* Search & filter claims
+* Role-based access control
+* Validation on all forms
+* Error handling
+* Loading indicators
+
+---
+
+## 🔐 Security Requirements
+
+* Input validation
+* File type validation
+* Secure authentication
+* Prevent unauthorized access
+
+---
+
+## 🧠 Future Enhancements (optional)
+
+* Email notifications
+* Export to Excel/PDF
+* Cloud file storage (AWS S3)
+* Mobile responsiveness
+
+---
+
+## 🌍 Language Preferences
+
+* Replit Agent Interaction: English
+* Application Interface: English
+
+---
+
+## 🚀 Final Instruction to Replit Agent
+
+Build the complete full-stack application with proper folder structure, clean UI, and working backend APIs. Ensure the system is fully functional and ready to run locally.
