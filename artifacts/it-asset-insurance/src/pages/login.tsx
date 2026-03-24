@@ -18,7 +18,8 @@ export default function Login() {
 
   useEffect(() => {
     if (user && !isUserLoading) setLocation("/");
-  }, [user, isUserLoading, setLocation]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isUserLoading]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

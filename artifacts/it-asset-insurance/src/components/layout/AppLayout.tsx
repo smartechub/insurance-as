@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import lightLogo from "@assets/Light_Logo_1774345301483.png";
 import { useGetMe, useLogout } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -36,6 +37,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const { data: user, isLoading, isError } = useGetMe({ query: { retry: false } });
   const logoutMutation = useLogout();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -43,7 +45,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     if (isError || (!isLoading && !user)) {
       setLocation("/login");
     }
-  }, [isError, isLoading, user, setLocation]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isError, isLoading, user]);
 
   if (isLoading || !user) {
     return (
@@ -70,6 +73,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
+        queryClient.clear();
         toast({ title: "Logged out successfully" });
         setLocation("/login");
       },
