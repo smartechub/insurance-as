@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   ChevronRight,
   Bell,
+  Shield,
 } from "lucide-react";
 import { useGetMe, useLogout } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/claims": "Claims Management",
   "/claims/new": "Create Claim",
   "/users": "User Management",
+  "/audit-log": "Audit Log",
 };
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -65,6 +67,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navItems = [...NAV];
   if (user?.role === "admin") {
     navItems.push({ label: "Users", href: "/users", icon: Users });
+    navItems.push({ label: "Audit Log", href: "/audit-log", icon: Shield });
   }
 
   const handleLogout = () => {
@@ -78,6 +81,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const pageTitle = PAGE_TITLES[location] ?? (location.startsWith("/claims/") ? "Claim Details" : "AssetGuard");
   const initials = user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
+
+  const activeHref = navItems
+    .filter((item) =>
+      item.href === "/"
+        ? location === "/"
+        : location === item.href || location.startsWith(item.href + "/")
+    )
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden font-sans">
@@ -118,15 +129,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 px-3 py-4 overflow-y-auto scrollbar-hide">
           <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3 mb-2">Main Menu</div>
           <div className="space-y-0.5">
-            {(() => {
-              const activeHref = navItems
-                .filter((item) =>
-                  item.href === "/"
-                    ? location === "/"
-                    : location === item.href || location.startsWith(item.href + "/")
-                )
-                .sort((a, b) => b.href.length - a.href.length)[0]?.href;
-              return navItems.map((item) => {
+            {navItems.map((item) => {
               const isActive = item.href === activeHref;
               return (
                 <Link
@@ -145,8 +148,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   {isActive && <ChevronRight className="w-3.5 h-3.5 text-indigo-300" />}
                 </Link>
               );
-            });
-            })()}
+            })}
           </div>
         </nav>
 

@@ -12,6 +12,7 @@ import Claims from "@/pages/claims";
 import CreateClaim from "@/pages/create-claim";
 import ClaimDetail from "@/pages/claim-detail";
 import Users from "@/pages/users";
+import AuditLog from "@/pages/audit-log";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/claims/new" component={CreateClaim} />
       <Route path="/claims/:id" component={ClaimDetail} />
       <Route path="/users" component={Users} />
+      <Route path="/audit-log" component={AuditLog} />
       
       <Route component={NotFound} />
     </Switch>

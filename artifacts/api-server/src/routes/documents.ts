@@ -5,6 +5,7 @@ import fs from "fs";
 import { db } from "@workspace/db";
 import { documentsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { logAudit } from "../lib/audit";
 
 const router: IRouter = Router();
 
@@ -22,13 +23,9 @@ const storage = multer.diskStorage({
 });
 
 const allowedTypes = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "application/pdf",
-  "application/zip",
-  "application/x-zip-compressed",
-  "application/octet-stream",
+  "image/jpeg", "image/jpg", "image/png",
+  "application/pdf", "application/zip",
+  "application/x-zip-compressed", "application/octet-stream",
 ];
 
 const upload = multer({
@@ -58,16 +55,14 @@ router.post("/upload/:claimId", requireAuth, upload.single("file"), async (req: 
   }
   const claimId = Number(req.params.claimId);
   const documentType = (req.body.documentType as string) || "other";
-  const [doc] = await db
-    .insert(documentsTable)
-    .values({
-      claimId,
-      fileName: req.file.originalname,
-      filePath: req.file.filename,
-      fileType: req.file.mimetype,
-      documentType,
-    })
-    .returning();
+  const [doc] = await db.insert(documentsTable).values({
+    claimId,
+    fileName: req.file.originalname,
+    filePath: req.file.filename,
+    fileType: req.file.mimetype,
+    documentType,
+  }).returning();
+  await logAudit({ req, action: "DOCUMENT_UPLOADED", category: "DOCUMENTS", resourceType: "document", resourceId: doc.id, description: `Uploaded document "${req.file.originalname}" (${documentType}) to claim #${claimId}`, metadata: { claimId, fileName: req.file.originalname, fileType: req.file.mimetype, documentType } });
   res.status(201).json(doc);
 });
 
@@ -99,6 +94,7 @@ router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
     fs.unlinkSync(filePath);
   }
   await db.delete(documentsTable).where(eq(documentsTable.id, id));
+  await logAudit({ req, action: "DOCUMENT_DELETED", category: "DOCUMENTS", resourceType: "document", resourceId: id, description: `Deleted document "${doc.fileName}" from claim #${doc.claimId}`, metadata: { claimId: doc.claimId, fileName: doc.fileName } });
   res.json({ message: "Document deleted successfully" });
 });
 

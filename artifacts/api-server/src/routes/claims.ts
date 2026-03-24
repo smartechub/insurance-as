@@ -2,12 +2,21 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { claimsTable, documentsTable } from "@workspace/db/schema";
 import { eq, ilike, or, desc, asc, count, sql } from "drizzle-orm";
+import { logAudit } from "../lib/audit";
 
 const router: IRouter = Router();
 
 function requireAuth(req: Request, res: Response, next: () => void) {
   if (!(req.session as any).userId) {
     res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  next();
+}
+
+function requireAdmin(req: Request, res: Response, next: () => void) {
+  if ((req.session as any).userRole !== "admin") {
+    res.status(403).json({ error: "Admin access required" });
     return;
   }
   next();
@@ -67,15 +76,10 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
       )
     );
   }
-  if (status) {
-    conditions.push(eq(claimsTable.claimStatus, status as any));
-  }
-  if (userRole !== "admin") {
-    conditions.push(eq(claimsTable.createdBy, userId));
-  }
+  if (status) conditions.push(eq(claimsTable.claimStatus, status as any));
+  if (userRole !== "admin") conditions.push(eq(claimsTable.createdBy, userId));
 
   const whereClause = conditions.length > 0 ? conditions.reduce((a, b) => sql`${a} AND ${b}`) : undefined;
-
   const orderCol = sortBy === "createdAt" ? claimsTable.createdAt : sortBy === "claimStatus" ? claimsTable.claimStatus : claimsTable.createdAt;
   const orderFn = sortOrder === "asc" ? asc : desc;
 
@@ -84,25 +88,17 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
     db.select().from(claimsTable).where(whereClause).orderBy(orderFn(orderCol)).limit(limit).offset(offset),
   ]);
 
+  await logAudit({ req, action: "CLAIMS_LISTED", category: "CLAIMS", description: `Viewed claims list (page ${page}, search: "${search}", status: "${status}")`, metadata: { page, search, status } });
+
   const total = Number(totalResult[0]?.count ?? 0);
-  res.json({
-    claims: rows.map(serializeClaim),
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-  });
+  res.json({ claims: rows.map(serializeClaim), total, page, limit, totalPages: Math.ceil(total / limit) });
 });
 
 router.post("/", requireAuth, async (req: Request, res: Response) => {
   const session = req.session as any;
-  const data = {
-    ...req.body,
-    claimStatus: req.body.claimStatus || "Pending",
-    employeeFileChargeStatus: req.body.employeeFileChargeStatus || "Pending",
-    createdBy: session.userId,
-  };
+  const data = { ...req.body, claimStatus: req.body.claimStatus || "Pending", employeeFileChargeStatus: req.body.employeeFileChargeStatus || "Pending", createdBy: session.userId };
   const [claim] = await db.insert(claimsTable).values(data).returning();
+  await logAudit({ req, action: "CLAIM_CREATED", category: "CLAIMS", resourceType: "claim", resourceId: claim.id, description: `Created claim for ${claim.employeeName} (Asset: ${claim.assetCode})`, metadata: { claimId: claim.id, employeeName: claim.employeeName, assetCode: claim.assetCode } });
   res.status(201).json(serializeClaim(claim));
 });
 
@@ -114,6 +110,7 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
     return;
   }
   const documents = await db.select().from(documentsTable).where(eq(documentsTable.claimId, id));
+  await logAudit({ req, action: "CLAIM_VIEWED", category: "CLAIMS", resourceType: "claim", resourceId: id, description: `Viewed claim #${id} for ${claim.employeeName}` });
   res.json({ ...serializeClaim(claim), documents });
 });
 
@@ -124,15 +121,15 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
     res.status(404).json({ error: "Claim not found" });
     return;
   }
-  const [updated] = await db
-    .update(claimsTable)
-    .set({ ...req.body, updatedAt: new Date() })
-    .where(eq(claimsTable.id, id))
-    .returning();
+  const [updated] = await db.update(claimsTable).set({ ...req.body, updatedAt: new Date() }).where(eq(claimsTable.id, id)).returning();
+  const changes: string[] = [];
+  if (req.body.claimStatus && req.body.claimStatus !== existing.claimStatus) changes.push(`status: ${existing.claimStatus} → ${req.body.claimStatus}`);
+  if (req.body.remark !== undefined) changes.push("remark updated");
+  await logAudit({ req, action: "CLAIM_UPDATED", category: "CLAIMS", resourceType: "claim", resourceId: id, description: `Updated claim #${id} for ${existing.employeeName}${changes.length ? ": " + changes.join(", ") : ""}`, metadata: { changes: req.body } });
   res.json(serializeClaim(updated));
 });
 
-router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
+router.delete("/:id", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const [existing] = await db.select().from(claimsTable).where(eq(claimsTable.id, id));
   if (!existing) {
@@ -140,6 +137,7 @@ router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
     return;
   }
   await db.delete(claimsTable).where(eq(claimsTable.id, id));
+  await logAudit({ req, action: "CLAIM_DELETED", category: "CLAIMS", resourceType: "claim", resourceId: id, description: `Deleted claim #${id} for ${existing.employeeName} (Asset: ${existing.assetCode})`, metadata: { employeeName: existing.employeeName, assetCode: existing.assetCode } });
   res.json({ message: "Claim deleted successfully" });
 });
 

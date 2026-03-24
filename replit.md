@@ -50,6 +50,19 @@ artifacts-monorepo/
 - **claims**: id, employeeId, employeeName, assetCode, assetType, serialNo, damageDate, repairDate, effectedPart, caseId, payableAmount, recoverAmount, fileCharge, claimStatus, employeeFileChargeStatus, remark, createdBy, timestamps
 - **documents**: id, claimId, fileName, filePath, fileType, documentType, createdAt
 
+## Audit Log
+
+All user activity is automatically recorded in the `audit_logs` table:
+- **Auth events**: login, logout, failed login, password reset
+- **Claim events**: viewed, created, updated, deleted, listed
+- **Document events**: uploaded, deleted
+- **User events**: created, updated, deleted, listed, exported, bulk uploaded
+
+Admin-only audit log page at `/audit-log` with:
+- Search, category filter, date range filter
+- Click any entry to expand metadata details
+- Export to CSV: Today / Last 7 days / Last 30 days / Last year / Custom range
+
 ## API Endpoints
 
 - `POST /api/auth/login` — Login (email + password)
@@ -73,6 +86,9 @@ artifacts-monorepo/
 - `DELETE /api/users/:id` — Delete user (admin only)
 - `GET /api/users/export` — Export all users as CSV (admin only)
 - `POST /api/users/bulk-upload` — Bulk upload users via CSV (admin only; default password: Welcome@123)
+- `GET /api/audit-logs` — List audit logs with pagination/filter (admin only)
+- `GET /api/audit-logs/export` — Export audit logs as CSV by range: day/week/month/year/custom (admin only)
+- `GET /api/audit-logs/summary` — Activity summary stats for last 7 days (admin only)
 
 ## Frontend Pages
 

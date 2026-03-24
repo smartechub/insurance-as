@@ -4,6 +4,7 @@ import multer from "multer";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { logAudit } from "../lib/audit";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -41,17 +42,12 @@ function formatUser(u: any) {
   return { ...u, createdAt: u.createdAt?.toISOString() };
 }
 
-router.get("/export", requireAuth, requireAdmin, async (_req: Request, res: Response) => {
+router.get("/export", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   const users = await db.select(USER_SELECT).from(usersTable);
+  await logAudit({ req, action: "USER_EXPORTED", category: "USERS", description: `Exported ${users.length} users as CSV` });
   const headers = ["First Name", "Last Name", "Employee ID", "Email", "Role", "Designation", "Department"];
   const rows = users.map(u => [
-    u.firstName ?? "",
-    u.lastName ?? "",
-    u.employeeId ?? "",
-    u.email,
-    u.role,
-    u.designation ?? "",
-    u.department ?? "",
+    u.firstName ?? "", u.lastName ?? "", u.employeeId ?? "", u.email, u.role, u.designation ?? "", u.department ?? "",
   ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
   const csv = [headers.join(","), ...rows].join("\n");
   res.setHeader("Content-Type", "text/csv");
@@ -108,28 +104,20 @@ router.post("/bulk-upload", requireAuth, requireAdmin, upload.single("file"), as
 
     const defaultPassword = await bcryptjs.hash("Welcome@123", 10);
     try {
-      await db.insert(usersTable).values({
-        firstName: firstName || null,
-        lastName: lastName || null,
-        name,
-        email,
-        password: defaultPassword,
-        role: validRole,
-        employeeId,
-        designation,
-        department,
-      });
+      await db.insert(usersTable).values({ firstName: firstName || null, lastName: lastName || null, name, email, password: defaultPassword, role: validRole, employeeId, designation, department });
       created++;
     } catch (err: any) {
       errors.push(`Row ${i + 1}: ${err.message}`);
     }
   }
 
+  await logAudit({ req, action: "USERS_BULK_UPLOADED", category: "USERS", description: `Bulk uploaded users: ${created} created, ${skipped} skipped, ${errors.length} errors`, metadata: { created, skipped, errors } });
   res.json({ created, skipped, errors });
 });
 
-router.get("/", requireAuth, requireAdmin, async (_req: Request, res: Response) => {
+router.get("/", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   const users = await db.select(USER_SELECT).from(usersTable);
+  await logAudit({ req, action: "USERS_LISTED", category: "USERS", description: `Viewed users list (${users.length} users)` });
   res.json(users.map(formatUser));
 });
 
@@ -147,16 +135,10 @@ router.post("/", requireAuth, requireAdmin, async (req: Request, res: Response) 
   const name = `${firstName} ${lastName}`.trim();
   const hashed = await bcryptjs.hash(password, 10);
   const [user] = await db.insert(usersTable).values({
-    firstName,
-    lastName,
-    name,
-    email,
-    password: hashed,
-    role,
-    employeeId: employeeId || null,
-    designation: designation || null,
-    department: department || null,
+    firstName, lastName, name, email, password: hashed, role,
+    employeeId: employeeId || null, designation: designation || null, department: department || null,
   }).returning(USER_SELECT);
+  await logAudit({ req, action: "USER_CREATED", category: "USERS", resourceType: "user", resourceId: user.id, description: `Created user: ${name} (${email}) with role ${role}`, metadata: { name, email, role } });
   res.status(201).json(formatUser(user));
 });
 
@@ -178,12 +160,15 @@ router.put("/:id", requireAuth, requireAdmin, async (req: Request, res: Response
   if (req.body.department !== undefined) updates.department = req.body.department || null;
   if (req.body.password) updates.password = await bcryptjs.hash(req.body.password, 10);
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning(USER_SELECT);
+  await logAudit({ req, action: "USER_UPDATED", category: "USERS", resourceType: "user", resourceId: id, description: `Updated user: ${user.name} (${user.email})`, metadata: { updatedFields: Object.keys(updates).filter(k => k !== "password") } });
   res.json(formatUser(user));
 });
 
 router.delete("/:id", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
+  const [target] = await db.select(USER_SELECT).from(usersTable).where(eq(usersTable.id, id));
   await db.delete(usersTable).where(eq(usersTable.id, id));
+  await logAudit({ req, action: "USER_DELETED", category: "USERS", resourceType: "user", resourceId: id, description: `Deleted user: ${target?.name ?? "Unknown"} (${target?.email ?? id})`, metadata: { name: target?.name, email: target?.email } });
   res.json({ message: "User deleted successfully" });
 });
 
