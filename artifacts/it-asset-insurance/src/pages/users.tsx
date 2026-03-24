@@ -17,9 +17,6 @@ const EMPTY_FORM = {
   department: "",
 };
 
-const DEPARTMENTS = [
-  "IT", "Finance", "HR", "Operations", "Sales", "Marketing", "Legal", "Engineering", "Other"
-];
 
 function exportToCSV(users: any[]) {
   const headers = ["First Name", "Last Name", "Employee ID", "Email", "Role", "Designation", "Department"];
@@ -325,19 +322,7 @@ export default function Users() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   {field("Designation", "designation")}
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Department</label>
-                    <select
-                      value={formData.department}
-                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border-2 border-slate-200 focus:border-primary outline-none text-sm appearance-none bg-white"
-                    >
-                      <option value="">Select department</option>
-                      {DEPARTMENTS.map((d) => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {field("Department", "department")}
                 </div>
                 <div className="pt-2 shrink-0">
                   <button
