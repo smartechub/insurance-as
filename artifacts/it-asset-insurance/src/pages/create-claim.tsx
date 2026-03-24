@@ -180,8 +180,7 @@ function MultiFileUpload({
 
   const addFiles = (newFiles: FileList | null) => {
     if (!newFiles) return;
-    const arr = Array.from(newFiles);
-    onChange([...files, ...arr]);
+    onChange([...files, ...Array.from(newFiles)]);
   };
 
   const removeFile = (index: number) => {
@@ -190,8 +189,16 @@ function MultiFileUpload({
 
   return (
     <div>
-      <label className="block text-sm font-semibold text-slate-700 mb-1">{label}</label>
+      <div className="flex items-center justify-between mb-1">
+        <label className="block text-sm font-semibold text-slate-700">{label}</label>
+        {files.length > 0 && (
+          <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+            {files.length} file{files.length !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
       {description && <p className="text-xs text-slate-400 mb-2">{description}</p>}
+
       <input
         ref={inputRef}
         type="file"
@@ -204,30 +211,81 @@ function MultiFileUpload({
         }}
       />
 
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="w-full flex flex-col items-center gap-2 py-5 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:border-primary hover:bg-primary/5 transition-all text-slate-400 hover:text-primary mb-3"
-      >
-        <UploadCloud className="w-6 h-6" />
-        <span className="text-sm font-medium">
-          {files.length === 0 ? "Click to select files" : "Add more files"}
-        </span>
-      </button>
-
+      {/* File list */}
       {files.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2 mb-3">
           {files.map((file, i) => (
-            <FilePreviewCard
+            <div
               key={i}
-              file={file}
-              onRemove={() => removeFile(i)}
-              onPreview={() => setPreviewFile(file)}
-            />
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:border-primary/40 transition-colors group"
+            >
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-primary flex-shrink-0 overflow-hidden">
+                {isImageFile(file) ? (
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt={file.name}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  getFileIcon(file)
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-800 truncate" title={file.name}>
+                  {file.name}
+                </p>
+                <p className="text-xs text-slate-400">{(file.size / 1024).toFixed(1)} KB</p>
+              </div>
+              <div className="flex items-center gap-1">
+                {isImageFile(file) && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewFile(file)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
+                    title="Preview"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeFile(i)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  title="Remove"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       )}
 
+      {/* Add button */}
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className={cn(
+          "w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed rounded-xl font-semibold text-sm transition-all",
+          files.length === 0
+            ? "border-slate-200 bg-slate-50 text-slate-400 hover:border-primary hover:bg-primary/5 hover:text-primary py-5 flex-col"
+            : "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary"
+        )}
+      >
+        {files.length === 0 ? (
+          <>
+            <UploadCloud className="w-6 h-6" />
+            <span>Click to add files</span>
+          </>
+        ) : (
+          <>
+            <span className="text-lg leading-none">＋</span>
+            <span>Add More Files</span>
+          </>
+        )}
+      </button>
+
+      {/* Image preview lightbox */}
       {previewFile && previewUrl && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
@@ -241,7 +299,11 @@ function MultiFileUpload({
             >
               <X className="w-4 h-4" />
             </button>
-            <img src={previewUrl} alt={previewFile.name} className="max-h-[85vh] max-w-full rounded-xl shadow-2xl object-contain" />
+            <img
+              src={previewUrl}
+              alt={previewFile.name}
+              className="max-h-[85vh] max-w-full rounded-xl shadow-2xl object-contain"
+            />
           </div>
         </div>
       )}
