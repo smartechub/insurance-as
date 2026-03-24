@@ -6,6 +6,7 @@ import { formatCurrency, cn } from "@/lib/utils";
 import { ArrowLeft, Edit2, CheckCircle, FileText, UploadCloud, X, Loader2, Image as ImageIcon, Trash2, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function ClaimDetail() {
   const [, params] = useRoute("/claims/:id");
@@ -139,6 +140,7 @@ function DocumentManager({ claimId, documents }: { claimId: number, documents: a
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [docType, setDocType] = useState('Quotation');
+  const [deleteDocId, setDeleteDocId] = useState<number | null>(null);
 
   const deleteDocMutation = useDeleteDocument();
   
@@ -169,15 +171,19 @@ function DocumentManager({ claimId, documents }: { claimId: number, documents: a
     }
   };
 
-  const handleDelete = (id: number) => {
-    if(confirm("Delete this document?")) {
-      deleteDocMutation.mutate({ id }, {
-        onSuccess: () => {
-          toast({ title: "Document deleted" });
-          queryClient.invalidateQueries({ queryKey: [`/api/documents/claim/${claimId}`] });
-        }
-      });
-    }
+  const handleDeleteConfirm = () => {
+    if (deleteDocId == null) return;
+    deleteDocMutation.mutate({ id: deleteDocId }, {
+      onSuccess: () => {
+        toast({ title: "Document deleted" });
+        queryClient.invalidateQueries({ queryKey: [`/api/documents/claim/${claimId}`] });
+        setDeleteDocId(null);
+      },
+      onError: () => {
+        toast({ variant: "destructive", title: "Failed to delete document" });
+        setDeleteDocId(null);
+      },
+    });
   };
 
   const docCategories = ['Damage Images', 'Repair Images', 'Quotation', 'Invoice', 'Claim Form', 'Other'];
@@ -236,7 +242,7 @@ function DocumentManager({ claimId, documents }: { claimId: number, documents: a
                       <a href={`/api/documents/file/${doc.filePath}`} target="_blank" rel="noreferrer" className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-lg hover:bg-primary hover:text-white transition-colors">
                         View
                       </a>
-                      <button onClick={() => handleDelete(doc.id)} className="text-xs font-bold text-red-600 bg-red-50 px-3 py-1 rounded-lg hover:bg-red-500 hover:text-white transition-colors">
+                      <button onClick={() => setDeleteDocId(doc.id)} className="text-xs font-bold text-red-600 bg-red-50 px-3 py-1 rounded-lg hover:bg-red-500 hover:text-white transition-colors">
                         Delete
                       </button>
                     </div>
@@ -247,6 +253,16 @@ function DocumentManager({ claimId, documents }: { claimId: number, documents: a
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteDocId !== null}
+        title="Delete Document"
+        description="Are you sure you want to delete this document? This action cannot be undone."
+        confirmLabel="Delete Document"
+        loading={deleteDocMutation.isPending}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteDocId(null)}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { formatCurrency, cn } from "@/lib/utils";
 import { Search, Filter, Plus, Eye, Trash2, ChevronLeft, ChevronRight, Loader2, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const STATUS_STYLES: Record<string, string> = {
   Pending: "bg-amber-50 text-amber-700 border-amber-200",
@@ -27,6 +28,7 @@ export default function ClaimsList() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("");
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
   const { data, isLoading } = useGetClaims({ page, limit: 10, search, status });
   const { data: user } = useGetMe();
@@ -34,16 +36,19 @@ export default function ClaimsList() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const handleDelete = (id: number) => {
-    if (confirm("Are you sure you want to delete this claim? This action cannot be undone.")) {
-      deleteMutation.mutate({ id }, {
-        onSuccess: () => {
-          toast({ title: "Claim deleted" });
-          queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
-        },
-        onError: () => toast({ variant: "destructive", title: "Failed to delete claim" }),
-      });
-    }
+  const handleDeleteConfirm = () => {
+    if (deleteTargetId == null) return;
+    deleteMutation.mutate({ id: deleteTargetId }, {
+      onSuccess: () => {
+        toast({ title: "Claim deleted" });
+        queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
+        setDeleteTargetId(null);
+      },
+      onError: () => {
+        toast({ variant: "destructive", title: "Failed to delete claim" });
+        setDeleteTargetId(null);
+      },
+    });
   };
 
   return (
@@ -144,7 +149,7 @@ export default function ClaimsList() {
                           <Eye className="w-4 h-4" />
                         </Link>
                         {user?.role === "admin" && (
-                          <button onClick={() => handleDelete(claim.id)}
+                          <button onClick={() => setDeleteTargetId(claim.id)}
                             className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -181,6 +186,16 @@ export default function ClaimsList() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        title="Delete Claim"
+        description="Are you sure you want to delete this claim? This action is permanent and cannot be undone."
+        confirmLabel="Delete Claim"
+        loading={deleteMutation.isPending}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTargetId(null)}
+      />
     </AppLayout>
   );
 }
