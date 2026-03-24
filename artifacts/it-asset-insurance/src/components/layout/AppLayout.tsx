@@ -118,8 +118,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 px-3 py-4 overflow-y-auto scrollbar-hide">
           <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3 mb-2">Main Menu</div>
           <div className="space-y-0.5">
-            {navItems.map((item) => {
-              const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+            {(() => {
+              const activeHref = navItems
+                .filter((item) =>
+                  item.href === "/"
+                    ? location === "/"
+                    : location === item.href || location.startsWith(item.href + "/")
+                )
+                .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+              return navItems.map((item) => {
+              const isActive = item.href === activeHref;
               return (
                 <Link
                   key={item.href}
@@ -137,7 +145,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   {isActive && <ChevronRight className="w-3.5 h-3.5 text-indigo-300" />}
                 </Link>
               );
-            })}
+            });
+            })()}
           </div>
         </nav>
 
