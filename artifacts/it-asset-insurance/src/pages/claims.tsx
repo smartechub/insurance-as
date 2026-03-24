@@ -104,6 +104,7 @@ export default function ClaimsList() {
               <tr className="bg-slate-50 border-b border-slate-200 text-sm font-bold text-slate-600 uppercase tracking-wider">
                 <th className="p-4">Employee</th>
                 <th className="p-4">Asset Details</th>
+                <th className="p-4">Serial No</th>
                 <th className="p-4">Status</th>
                 <th className="p-4">Payable Amount</th>
                 <th className="p-4 text-right">Actions</th>
@@ -111,9 +112,9 @@ export default function ClaimsList() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
-                <tr><td colSpan={5} className="p-8 text-center text-slate-400">Loading claims...</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-slate-400">Loading claims...</td></tr>
               ) : data?.claims?.length === 0 ? (
-                <tr><td colSpan={5} className="p-8 text-center text-slate-400">No claims found matching your criteria.</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-slate-400">No claims found matching your criteria.</td></tr>
               ) : (
                 data?.claims?.map(claim => (
                   <tr key={claim.id} className="hover:bg-slate-50/50 transition-colors">
@@ -124,6 +125,9 @@ export default function ClaimsList() {
                     <td className="p-4">
                       <div className="font-medium text-slate-700">{claim.assetType}</div>
                       <div className="text-xs text-slate-500 font-mono">Code: {claim.assetCode}</div>
+                    </td>
+                    <td className="p-4">
+                      <span className="text-sm font-mono text-slate-600">{claim.serialNo || '-'}</span>
                     </td>
                     <td className="p-4">
                       <span className={cn("px-3 py-1 rounded-full text-xs font-bold border", getStatusColor(claim.claimStatus))}>
