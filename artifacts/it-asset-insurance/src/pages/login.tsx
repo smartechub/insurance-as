@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const { data: user, isLoading: isUserLoading } = useGetMe({ query: { retry: false } });
+  const { data: user, isLoading: isUserLoading, isError: isUserError } = useGetMe({ query: { retry: false } });
   const loginMutation = useLogin();
   const { toast } = useToast();
 
@@ -17,9 +17,9 @@ export default function Login() {
   const [showPass, setShowPass] = useState(false);
 
   useEffect(() => {
-    if (user && !isUserLoading) setLocation("/");
+    if (user && !isUserLoading && !isUserError) setLocation("/");
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isUserLoading]);
+  }, [user, isUserLoading, isUserError]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

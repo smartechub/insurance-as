@@ -43,6 +43,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isError || (!isLoading && !user)) {
+      queryClient.removeQueries();
       setLocation("/login");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
