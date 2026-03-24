@@ -1,170 +1,199 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useGetClaimStats } from "@workspace/api-client-react";
-import { formatCurrency } from "@/lib/utils";
-import { 
-  FileStack, 
-  Clock, 
-  CheckCircle2, 
-  Ban,
-  TrendingUp,
-  Activity
-} from "lucide-react";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
+import { FileStack, Clock, CheckCircle2, Activity, TrendingUp, AlertCircle, ArrowUpRight } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell
 } from "recharts";
 
-const COLORS = ['#F59E0B', '#3B82F6', '#10B981', '#EF4444', '#64748B'];
-const STATUS_MAP = {
-  'Pending': '#F59E0B',
-  'Processing': '#3B82F6',
-  'Approved': '#10B981',
-  'Rejected': '#EF4444',
-  'Settled': '#64748B'
+const STATUS_COLORS: Record<string, string> = {
+  Pending: "#F59E0B",
+  Processing: "#6366F1",
+  Approved: "#10B981",
+  Rejected: "#EF4444",
+  Settled: "#64748B",
+};
+
+const STAT_CARDS = [
+  { key: "total", label: "Total Claims", icon: FileStack, color: "indigo", iconBg: "bg-indigo-100", iconColor: "text-indigo-600" },
+  { key: "pending", label: "Pending Review", icon: Clock, color: "amber", iconBg: "bg-amber-100", iconColor: "text-amber-600" },
+  { key: "processing", label: "In Processing", icon: Activity, color: "blue", iconBg: "bg-blue-100", iconColor: "text-blue-600" },
+  { key: "settled", label: "Settled", icon: CheckCircle2, color: "green", iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
+];
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload?.length) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-xl shadow-slate-900/10">
+        <p className="text-xs font-semibold text-slate-500 mb-1">{label}</p>
+        <p className="text-lg font-bold text-slate-900">{payload[0].value} <span className="text-sm font-normal text-slate-400">claims</span></p>
+      </div>
+    );
+  }
+  return null;
 };
 
 export default function Dashboard() {
   const { data: stats, isLoading } = useGetClaimStats();
 
-  if (isLoading) {
-    return (
-      <AppLayout>
-        <div className="flex h-64 items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </AppLayout>
-    );
-  }
+  const pieData = stats?.claimsByStatus?.filter(s => s.count > 0).map(s => ({
+    name: s.status, value: s.count,
+  })) ?? [];
 
-  const pieData = stats?.claimsByStatus?.map(s => ({
-    name: s.status,
-    value: s.count
-  })) || [];
+  const totalSettledOrApproved = (stats?.settled ?? 0) + (stats?.approved ?? 0);
+  const total = stats?.total ?? 0;
+  const resolutionRate = total > 0 ? Math.round((totalSettledOrApproved / total) * 100) : 0;
 
   return (
     <AppLayout>
-      <div className="mb-8">
-        <h1 className="text-3xl font-display text-slate-900 mb-2">Dashboard Overview</h1>
-        <p className="text-slate-500">Real-time metrics and analytics for your IT asset claims.</p>
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-display font-bold text-slate-900">Dashboard Overview</h1>
+          <p className="text-sm text-slate-500 mt-1">Real-time analytics for your IT asset insurance claims.</p>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 bg-white border border-slate-200 rounded-lg px-3 py-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          Live data
+        </div>
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard 
-          title="Total Claims" 
-          value={stats?.total || 0} 
-          icon={<FileStack className="w-6 h-6 text-indigo-600" />} 
-          bg="bg-indigo-100" 
-        />
-        <StatCard 
-          title="Pending Review" 
-          value={stats?.pending || 0} 
-          icon={<Clock className="w-6 h-6 text-amber-600" />} 
-          bg="bg-amber-100" 
-        />
-        <StatCard 
-          title="Currently Processing" 
-          value={stats?.processing || 0} 
-          icon={<Activity className="w-6 h-6 text-blue-600" />} 
-          bg="bg-blue-100" 
-        />
-        <StatCard 
-          title="Successfully Settled" 
-          value={stats?.settled || 0} 
-          icon={<CheckCircle2 className="w-6 h-6 text-emerald-600" />} 
-          bg="bg-emerald-100" 
-        />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {STAT_CARDS.map((card) => {
+          const val = (stats as any)?.[card.key] ?? 0;
+          const Icon = card.icon;
+          return (
+            <div key={card.key} className="card p-5 flex flex-col gap-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div className={`w-10 h-10 rounded-xl ${card.iconBg} flex items-center justify-center`}>
+                  <Icon className={`w-5 h-5 ${card.iconColor}`} />
+                </div>
+                <ArrowUpRight className="w-4 h-4 text-slate-300" />
+              </div>
+              <div>
+                {isLoading ? (
+                  <div className="h-8 w-16 bg-slate-100 rounded-lg animate-pulse mb-1" />
+                ) : (
+                  <div className="text-3xl font-display font-bold text-slate-900">{val}</div>
+                )}
+                <div className="text-xs font-medium text-slate-500 mt-0.5">{card.label}</div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
         {/* Bar Chart */}
-        <div className="lg:col-span-2 glass-card rounded-3xl p-6">
+        <div className="lg:col-span-2 card p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold font-display text-slate-800">Claims by Month</h3>
-            <div className="p-2 bg-slate-50 rounded-lg"><TrendingUp className="w-5 h-5 text-slate-400" /></div>
+            <div>
+              <h3 className="font-display font-bold text-slate-900">Monthly Claim Volume</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Number of claims filed per month</p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-1.5">
+              <TrendingUp className="w-3.5 h-3.5" /> Trend
+            </div>
           </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats?.claimsByMonth || []}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#64748B'}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748B'}} dx={-10} />
-                <Tooltip 
-                  cursor={{fill: '#F1F5F9'}} 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                />
-                <Bar dataKey="count" fill="var(--primary)" radius={[6, 6, 0, 0]} barSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {isLoading ? (
+            <div className="h-[280px] flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full border-2 border-indigo-200 border-t-indigo-600 animate-spin" />
+            </div>
+          ) : (
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats?.claimsByMonth ?? []} barSize={28} barGap={4}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false}
+                    tick={{ fill: "#94A3B8", fontSize: 11, fontFamily: "Inter" }} dy={8} />
+                  <YAxis axisLine={false} tickLine={false}
+                    tick={{ fill: "#94A3B8", fontSize: 11, fontFamily: "Inter" }} dx={-4} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "#F8FAFC", radius: 6 }} />
+                  <Bar dataKey="count" fill="#6366F1" radius={[5, 5, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
-        {/* Pie Chart */}
-        <div className="glass-card rounded-3xl p-6">
-          <h3 className="text-xl font-bold font-display text-slate-800 mb-6">Status Distribution</h3>
-          <div className="h-[250px] w-full flex items-center justify-center">
-            {pieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={70}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={STATUS_MAP[entry.name as keyof typeof STATUS_MAP] || COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="text-slate-400">No data available</div>
-            )}
+        {/* Donut Chart */}
+        <div className="card p-6">
+          <div className="mb-5">
+            <h3 className="font-display font-bold text-slate-900">Status Breakdown</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Claims by current status</p>
           </div>
-          
-          <div className="mt-4 space-y-3">
-            {pieData.map((entry, index) => (
-              <div key={entry.name} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: STATUS_MAP[entry.name as keyof typeof STATUS_MAP] || COLORS[index] }} />
-                  <span className="text-sm font-medium text-slate-700">{entry.name}</span>
-                </div>
-                <span className="text-sm font-bold text-slate-900">{entry.value}</span>
+          {isLoading ? (
+            <div className="h-[180px] flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full border-2 border-indigo-200 border-t-indigo-600 animate-spin" />
+            </div>
+          ) : pieData.length > 0 ? (
+            <>
+              <div className="h-[160px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={52} outerRadius={74}
+                      paddingAngle={3} dataKey="value" stroke="none">
+                      {pieData.map((entry, i) => (
+                        <Cell key={i} fill={STATUS_COLORS[entry.name] ?? "#94A3B8"} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ borderRadius: "10px", border: "1px solid #E2E8F0", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)", fontSize: "12px" }} />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            ))}
+              <div className="mt-4 space-y-2.5">
+                {pieData.map((entry) => (
+                  <div key={entry.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: STATUS_COLORS[entry.name] ?? "#94A3B8" }} />
+                      <span className="text-xs font-medium text-slate-600">{entry.name}</span>
+                    </div>
+                    <span className="text-xs font-bold text-slate-800">{entry.value}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="h-[160px] flex flex-col items-center justify-center gap-2 text-slate-400">
+              <AlertCircle className="w-8 h-8 text-slate-300" />
+              <span className="text-sm">No data available</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom row — summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="card px-5 py-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+            <AlertCircle className="w-5 h-5 text-red-500" />
+          </div>
+          <div>
+            <div className="text-xl font-display font-bold text-slate-900">{stats?.rejected ?? 0}</div>
+            <div className="text-xs text-slate-500">Rejected Claims</div>
+          </div>
+        </div>
+        <div className="card px-5 py-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div>
+            <div className="text-xl font-display font-bold text-slate-900">{stats?.approved ?? 0}</div>
+            <div className="text-xs text-slate-500">Approved Claims</div>
+          </div>
+        </div>
+        <div className="card px-5 py-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+            <TrendingUp className="w-5 h-5 text-indigo-600" />
+          </div>
+          <div>
+            <div className="text-xl font-display font-bold text-slate-900">{resolutionRate}%</div>
+            <div className="text-xs text-slate-500">Resolution Rate</div>
           </div>
         </div>
       </div>
     </AppLayout>
-  );
-}
-
-function StatCard({ title, value, icon, bg }: { title: string, value: number, icon: React.ReactNode, bg: string }) {
-  return (
-    <div className="glass-card rounded-3xl p-6 flex items-center gap-4 hover:-translate-y-1 hover:shadow-xl transition-all duration-300">
-      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${bg}`}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-sm font-semibold text-slate-500 mb-1">{title}</p>
-        <p className="text-3xl font-display font-bold text-slate-900">{value}</p>
-      </div>
-    </div>
   );
 }

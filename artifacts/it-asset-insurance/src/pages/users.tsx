@@ -155,7 +155,7 @@ export default function Users() {
 
   const field = (label: string, key: keyof typeof formData, type = "text", required = false) => (
     <div>
-      <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       <input
@@ -163,112 +163,90 @@ export default function Users() {
         required={required}
         value={formData[key] as string}
         onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
-        className="w-full px-4 py-2.5 rounded-xl border-2 border-slate-200 focus:border-primary outline-none text-sm"
+        className="input-base"
       />
     </div>
   );
 
   return (
     <AppLayout>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
-          <h1 className="text-3xl font-display text-slate-900 mb-2">User Management</h1>
-          <p className="text-slate-500">Manage system access and employee profiles.</p>
+          <h1 className="text-2xl font-display font-bold text-slate-900">User Management</h1>
+          <p className="text-sm text-slate-500 mt-1">Manage system access and employee profiles.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={downloadSampleCSV}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-slate-200 text-slate-600 hover:border-primary hover:text-primary font-semibold text-sm transition-all"
-          >
+          <button onClick={downloadSampleCSV} className="btn-secondary">
             <FileDown className="w-4 h-4" /> Sample CSV
           </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isBulkUploading}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-slate-200 text-slate-600 hover:border-primary hover:text-primary font-semibold text-sm transition-all disabled:opacity-50"
-          >
+          <button onClick={() => fileInputRef.current?.click()} disabled={isBulkUploading} className="btn-secondary disabled:opacity-50">
             {isBulkUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             Bulk Upload
           </button>
           <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleBulkUpload} />
-          <button
-            onClick={() => exportToCSV(users ?? [])}
-            disabled={!users?.length}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-slate-200 text-slate-600 hover:border-primary hover:text-primary font-semibold text-sm transition-all disabled:opacity-40"
-          >
+          <button onClick={() => exportToCSV(users ?? [])} disabled={!users?.length} className="btn-secondary disabled:opacity-40">
             <Download className="w-4 h-4" /> Export
           </button>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 primary-gradient px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg transition-all"
-          >
+          <button onClick={() => setIsModalOpen(true)} className="btn-primary">
             <Plus className="w-4 h-4" /> Add User
           </button>
         </div>
       </div>
 
-      <div className="glass-card rounded-3xl overflow-hidden border border-slate-200">
+      <div className="card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[900px]">
+          <table className="w-full text-left min-w-[900px]">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                <th className="p-4">Name</th>
-                <th className="p-4">Employee ID</th>
-                <th className="p-4">Email</th>
-                <th className="p-4">Role</th>
-                <th className="p-4">Designation</th>
-                <th className="p-4">Department</th>
-                <th className="p-4 text-right">Actions</th>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
+                <th className="px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Employee ID</th>
+                <th className="px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Email</th>
+                <th className="px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Role</th>
+                <th className="px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Designation</th>
+                <th className="px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Department</th>
+                <th className="px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
-                <tr>
-                  <td colSpan={7} className="p-10 text-center">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
-                  </td>
-                </tr>
+                <tr><td colSpan={7} className="py-16 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-500" /></td></tr>
               ) : users?.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="p-10 text-center text-slate-400">No users found.</td>
-                </tr>
+                <tr><td colSpan={7} className="py-16 text-center text-sm text-slate-400">No users found.</td></tr>
               ) : (
-                users?.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50/50">
-                    <td className="p-4">
-                      <div className="font-semibold text-slate-900">
-                        {user.firstName && user.lastName
-                          ? `${user.firstName} ${user.lastName}`
-                          : user.name}
-                      </div>
-                    </td>
-                    <td className="p-4 text-slate-600 text-sm">{user.employeeId || <span className="text-slate-300">—</span>}</td>
-                    <td className="p-4 text-slate-600 text-sm">{user.email}</td>
-                    <td className="p-4">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          user.role === "admin"
-                            ? "bg-primary/10 text-primary"
-                            : "bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="p-4 text-slate-600 text-sm">{user.designation || <span className="text-slate-300">—</span>}</td>
-                    <td className="p-4 text-slate-600 text-sm">{user.department || <span className="text-slate-300">—</span>}</td>
-                    <td className="p-4 text-right">
-                      {user.id !== currentUser?.id && (
-                        <button
-                          onClick={() => handleDelete(user.id)}
-                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                users?.map((user) => {
+                  const rawInitials = (user.firstName?.[0] ?? "") + (user.lastName?.[0] ?? "");
+                  const initials = rawInitials || (user.name?.[0]?.toUpperCase() ?? "U");
+                  const fullName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.name;
+                  return (
+                    <tr key={user.id} className="hover:bg-slate-50/60 transition-colors group">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold font-display shrink-0">
+                            {initials.toUpperCase()}
+                          </div>
+                          <span className="font-semibold text-sm text-slate-900">{fullName}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-sm font-mono text-slate-500">{user.employeeId || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-5 py-3.5 text-sm text-slate-600">{user.email}</td>
+                      <td className="px-5 py-3.5">
+                        <span className={`badge ${user.role === "admin" ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-slate-100 text-slate-600"}`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-sm text-slate-600">{user.designation || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-5 py-3.5 text-sm text-slate-600">{user.department || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-5 py-3.5 text-right">
+                        {user.id !== currentUser?.id && (
+                          <button onClick={() => handleDelete(user.id)}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-70 group-hover:opacity-100">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -280,18 +258,22 @@ export default function Users() {
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-xl w-full max-w-2xl shadow-2xl shadow-slate-900/20 overflow-hidden max-h-[90vh] flex flex-col"
             >
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                <h3 className="text-xl font-bold font-display text-slate-900">Add New User</h3>
+              <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
+                <div>
+                  <h3 className="text-base font-display font-bold text-slate-900">Add New User</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Fill in the details below to create a new account.</p>
+                </div>
                 <button
                   onClick={() => { setIsModalOpen(false); setFormData(EMPTY_FORM); }}
-                  className="text-slate-400 hover:text-slate-700"
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
               <form onSubmit={handleCreate} className="p-6 overflow-y-auto space-y-4">
@@ -301,18 +283,18 @@ export default function Users() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   {field("Employee ID", "employeeId")}
-                  {field("Email ID", "email", "email", true)}
+                  {field("Email", "email", "email", true)}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
                       Role <span className="text-red-500">*</span>
                     </label>
                     <select
                       required
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-                      className="w-full px-4 py-2.5 rounded-xl border-2 border-slate-200 focus:border-primary outline-none text-sm appearance-none bg-white"
+                      className="input-base appearance-none"
                     >
                       <option value="user">User</option>
                       <option value="admin">Admin</option>
@@ -324,13 +306,13 @@ export default function Users() {
                   {field("Designation", "designation")}
                   {field("Department", "department")}
                 </div>
-                <div className="pt-2 shrink-0">
+                <div className="pt-2">
                   <button
                     type="submit"
                     disabled={createMutation.isPending}
-                    className="w-full primary-gradient py-3 rounded-xl font-bold text-sm"
+                    className="w-full btn-primary justify-center"
                   >
-                    {createMutation.isPending ? "Creating..." : "Create User"}
+                    {createMutation.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</> : "Create User"}
                   </button>
                 </div>
               </form>

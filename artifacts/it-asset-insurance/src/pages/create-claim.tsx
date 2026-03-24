@@ -426,23 +426,23 @@ export default function CreateClaim() {
 
   return (
     <AppLayout>
-      <div className="mb-8">
+      <div className="mb-6">
         <Link
           href="/claims"
-          className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-primary mb-4 transition-colors"
+          className="inline-flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-indigo-600 mb-4 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Claims
         </Link>
-        <h1 className="text-3xl font-display text-slate-900 mb-2">Create New Claim</h1>
-        <p className="text-slate-500">
-          Enter the details below to initiate a new IT asset insurance claim.
+        <h1 className="text-2xl font-display font-bold text-slate-900">Create New Claim</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Fill in the details below to initiate a new IT asset insurance claim.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-5">
         {/* Basic Information */}
-        <div className="glass-card rounded-3xl p-8">
-          <h2 className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-4 mb-6">
+        <div className="card p-6">
+          <h2 className="text-base font-display font-bold text-slate-900 border-b border-slate-100 pb-3 mb-5">
             Basic Information
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -455,8 +455,8 @@ export default function CreateClaim() {
         </div>
 
         {/* Incident & Financial Details */}
-        <div className="glass-card rounded-3xl p-8">
-          <h2 className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-4 mb-6">
+        <div className="card p-6">
+          <h2 className="text-base font-display font-bold text-slate-900 border-b border-slate-100 pb-3 mb-5">
             Incident & Financial Details
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -475,16 +475,16 @@ export default function CreateClaim() {
                 value={formData.remark}
                 onChange={handleChange}
                 rows={4}
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 font-medium"
+                className="input-base"
               />
             </div>
           </div>
         </div>
 
         {/* Attachments */}
-        <div className="glass-card rounded-3xl p-8">
-          <div className="border-b border-slate-200 pb-4 mb-6">
-            <h2 className="text-xl font-bold text-slate-900">Attachments</h2>
+        <div className="card p-6">
+          <div className="border-b border-slate-100 pb-3 mb-5">
+            <h2 className="text-base font-display font-bold text-slate-900">Attachments</h2>
             <p className="text-sm text-slate-500 mt-1">
               Upload supporting documents. Images can be previewed before submitting.
             </p>
@@ -568,26 +568,23 @@ export default function CreateClaim() {
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-4">
-          <Link
-            href="/claims"
-            className="px-6 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition-colors"
-          >
+        <div className="flex justify-end gap-3">
+          <Link href="/claims" className="btn-secondary">
             Cancel
           </Link>
           <button
             type="submit"
             disabled={isBusy}
-            className="flex items-center gap-2 primary-gradient px-8 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+            className="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isBusy ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                {isUploading ? "Uploading files…" : "Saving…"}
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {isUploading ? "Uploading…" : "Saving…"}
               </>
             ) : (
               <>
-                <Save className="w-5 h-5" />
+                <Save className="w-4 h-4" />
                 Save Claim
               </>
             )}
@@ -601,11 +598,8 @@ export default function CreateClaim() {
 function InputField({ label, ...props }: any) {
   return (
     <div>
-      <label className="block text-sm font-semibold text-slate-700 mb-2">{label}</label>
-      <input
-        className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 font-medium"
-        {...props}
-      />
+      <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">{label}</label>
+      <input className="input-base" {...props} />
     </div>
   );
 }
@@ -613,15 +607,10 @@ function InputField({ label, ...props }: any) {
 function SelectField({ label, options, ...props }: any) {
   return (
     <div>
-      <label className="block text-sm font-semibold text-slate-700 mb-2">{label}</label>
-      <select
-        className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none text-slate-900 font-medium appearance-none"
-        {...props}
-      >
+      <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">{label}</label>
+      <select className="input-base appearance-none" {...props}>
         {options.map((opt: string) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
+          <option key={opt} value={opt}>{opt}</option>
         ))}
       </select>
     </div>

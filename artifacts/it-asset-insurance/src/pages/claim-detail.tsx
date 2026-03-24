@@ -21,38 +21,37 @@ export default function ClaimDetail() {
   return (
     <AppLayout>
       <div className="mb-6">
-        <Link href="/claims" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-primary mb-4 transition-colors">
+        <Link href="/claims" className="inline-flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-indigo-600 mb-4 transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back to Claims
         </Link>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-display text-slate-900 mb-2">Claim #{claim.id}</h1>
-            <p className="text-slate-500 font-mono">{claim.assetCode} - {claim.employeeName}</p>
+            <h1 className="text-2xl font-display font-bold text-slate-900">Claim #{claim.id}</h1>
+            <p className="text-sm text-slate-500 font-mono mt-1">{claim.assetCode} · {claim.employeeName}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <span className={cn("px-4 py-2 rounded-full text-sm font-bold border", getStatusColor(claim.claimStatus))}>
+          <div className="flex items-center gap-2">
+            <span className={cn("badge border", getStatusColor(claim.claimStatus))}>
               {claim.claimStatus}
             </span>
-            <button className="flex items-center gap-2 bg-white border-2 border-slate-200 text-slate-700 px-4 py-2 rounded-xl font-bold hover:bg-slate-50 transition-colors">
-              <Edit2 className="w-4 h-4" /> Edit
-            </button>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 p-1 bg-slate-200/50 rounded-2xl mb-8 w-fit">
-        <button 
+      <div className="flex items-center gap-1 border-b border-slate-200 mb-6">
+        <button
           onClick={() => setActiveTab('details')}
-          className={cn("px-6 py-2.5 rounded-xl font-bold text-sm transition-all", activeTab === 'details' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700")}
+          className={cn("px-4 py-2.5 text-sm font-semibold border-b-2 transition-all -mb-px",
+            activeTab === 'details' ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-700")}
         >
           Claim Details
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('documents')}
-          className={cn("px-6 py-2.5 rounded-xl font-bold text-sm transition-all", activeTab === 'documents' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700")}
+          className={cn("px-4 py-2.5 text-sm font-semibold border-b-2 transition-all -mb-px",
+            activeTab === 'documents' ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-700")}
         >
-          Documents ({documents?.length || 0})
+          Documents {documents?.length ? `(${documents.length})` : ""}
         </button>
       </div>
 
@@ -103,9 +102,9 @@ export default function ClaimDetail() {
 
 function DetailCard({ title, children }: { title: string, children: React.ReactNode }) {
   return (
-    <div className="glass-card rounded-3xl p-6">
-      <h2 className="text-xl font-bold font-display text-slate-900 mb-4">{title}</h2>
-      <div className="space-y-4">
+    <div className="card p-5">
+      <h2 className="text-sm font-display font-bold text-slate-700 uppercase tracking-wider mb-4 pb-3 border-b border-slate-100">{title}</h2>
+      <div className="space-y-3.5">
         {children}
       </div>
     </div>
@@ -186,15 +185,15 @@ function DocumentManager({ claimId, documents }: { claimId: number, documents: a
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-1">
-        <div className="glass-card rounded-3xl p-6 sticky top-8">
-          <h3 className="text-xl font-bold font-display text-slate-900 mb-4">Upload New</h3>
+        <div className="card p-5 sticky top-8">
+          <h3 className="text-sm font-display font-bold text-slate-700 uppercase tracking-wider mb-4 pb-3 border-b border-slate-100">Upload New</h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Document Type</label>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Document Type</label>
               <select 
                 value={docType}
                 onChange={(e) => setDocType(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 focus:bg-white focus:border-primary outline-none font-medium appearance-none"
+                className="input-base appearance-none"
               >
                 {docCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
@@ -205,18 +204,18 @@ function DocumentManager({ claimId, documents }: { claimId: number, documents: a
             <button 
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadMutation.isPending}
-              className="w-full flex items-center justify-center gap-2 primary-gradient py-4 rounded-xl font-bold mt-4"
+              className="w-full btn-primary justify-center"
             >
-              {uploadMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <UploadCloud className="w-5 h-5" />}
-              Select & Upload File
+              {uploadMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+              Select & Upload
             </button>
           </div>
         </div>
       </div>
 
       <div className="lg:col-span-2">
-        <div className="glass-card rounded-3xl p-6">
-          <h3 className="text-xl font-bold font-display text-slate-900 mb-6">Uploaded Documents</h3>
+        <div className="card p-5">
+          <h3 className="text-sm font-display font-bold text-slate-700 uppercase tracking-wider mb-5 pb-3 border-b border-slate-100">Uploaded Documents</h3>
           
           {documents.length === 0 ? (
             <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
