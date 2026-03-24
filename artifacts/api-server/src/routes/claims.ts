@@ -1,8 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { claimsTable, documentsTable } from "@workspace/db/schema";
+import { claimsTable, documentsTable, usersTable } from "@workspace/db/schema";
 import { eq, ilike, or, desc, asc, count, sql } from "drizzle-orm";
 import { logAudit } from "../lib/audit";
+import { sendClaimNotification } from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -99,6 +100,17 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
   const data = { ...req.body, claimStatus: req.body.claimStatus || "Pending", employeeFileChargeStatus: req.body.employeeFileChargeStatus || "Pending", createdBy: session.userId };
   const [claim] = await db.insert(claimsTable).values(data).returning();
   await logAudit({ req, action: "CLAIM_CREATED", category: "CLAIMS", resourceType: "claim", resourceId: claim.id, description: `Created claim for ${claim.employeeName} (Asset: ${claim.assetCode})`, metadata: { claimId: claim.id, employeeName: claim.employeeName, assetCode: claim.assetCode } });
+  sendClaimNotification({
+    event: "created", claimId: claim.id,
+    employeeName: claim.employeeName, employeeId: claim.employeeId,
+    assetCode: claim.assetCode, assetType: claim.assetType,
+    serialNo: claim.serialNo, claimStatus: claim.claimStatus,
+    payableAmount: claim.payableAmount ? Number(claim.payableAmount) : null,
+    recoverAmount: claim.recoverAmount ? Number(claim.recoverAmount) : null,
+    fileCharge: claim.fileCharge ? Number(claim.fileCharge) : null,
+    effectedPart: claim.effectedPart, damageDate: claim.damageDate,
+    repairDate: claim.repairDate, remark: claim.remark,
+  }).catch(() => {});
   res.status(201).json(serializeClaim(claim));
 });
 
@@ -116,6 +128,7 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
 
 router.put("/:id", requireAuth, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
+  const session = req.session as any;
   const [existing] = await db.select().from(claimsTable).where(eq(claimsTable.id, id));
   if (!existing) {
     res.status(404).json({ error: "Claim not found" });
@@ -123,14 +136,30 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
   }
   const [updated] = await db.update(claimsTable).set({ ...req.body, updatedAt: new Date() }).where(eq(claimsTable.id, id)).returning();
   const changes: string[] = [];
-  if (req.body.claimStatus && req.body.claimStatus !== existing.claimStatus) changes.push(`status: ${existing.claimStatus} → ${req.body.claimStatus}`);
-  if (req.body.remark !== undefined) changes.push("remark updated");
+  if (req.body.claimStatus && req.body.claimStatus !== existing.claimStatus) changes.push(`Status changed: <strong>${existing.claimStatus}</strong> → <strong>${req.body.claimStatus}</strong>`);
+  if (req.body.remark !== undefined && req.body.remark !== existing.remark) changes.push("Remark updated");
+  if (req.body.payableAmount !== undefined) changes.push("Payable amount updated");
   await logAudit({ req, action: "CLAIM_UPDATED", category: "CLAIMS", resourceType: "claim", resourceId: id, description: `Updated claim #${id} for ${existing.employeeName}${changes.length ? ": " + changes.join(", ") : ""}`, metadata: { changes: req.body } });
+  const [updatedByUser] = session.userId ? await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, session.userId)) : [null];
+  sendClaimNotification({
+    event: "updated", claimId: id,
+    employeeName: updated.employeeName, employeeId: updated.employeeId,
+    assetCode: updated.assetCode, assetType: updated.assetType,
+    serialNo: updated.serialNo, claimStatus: updated.claimStatus,
+    payableAmount: updated.payableAmount ? Number(updated.payableAmount) : null,
+    recoverAmount: updated.recoverAmount ? Number(updated.recoverAmount) : null,
+    fileCharge: updated.fileCharge ? Number(updated.fileCharge) : null,
+    effectedPart: updated.effectedPart, damageDate: updated.damageDate,
+    repairDate: updated.repairDate, remark: updated.remark,
+    updatedBy: updatedByUser?.name,
+    changes: changes.join(" · ") || undefined,
+  }).catch(() => {});
   res.json(serializeClaim(updated));
 });
 
 router.delete("/:id", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
+  const session = req.session as any;
   const [existing] = await db.select().from(claimsTable).where(eq(claimsTable.id, id));
   if (!existing) {
     res.status(404).json({ error: "Claim not found" });
@@ -138,6 +167,19 @@ router.delete("/:id", requireAuth, requireAdmin, async (req: Request, res: Respo
   }
   await db.delete(claimsTable).where(eq(claimsTable.id, id));
   await logAudit({ req, action: "CLAIM_DELETED", category: "CLAIMS", resourceType: "claim", resourceId: id, description: `Deleted claim #${id} for ${existing.employeeName} (Asset: ${existing.assetCode})`, metadata: { employeeName: existing.employeeName, assetCode: existing.assetCode } });
+  const [deletedByUser] = session.userId ? await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, session.userId)) : [null];
+  sendClaimNotification({
+    event: "deleted", claimId: id,
+    employeeName: existing.employeeName, employeeId: existing.employeeId,
+    assetCode: existing.assetCode, assetType: existing.assetType,
+    serialNo: existing.serialNo, claimStatus: existing.claimStatus,
+    payableAmount: existing.payableAmount ? Number(existing.payableAmount) : null,
+    recoverAmount: existing.recoverAmount ? Number(existing.recoverAmount) : null,
+    fileCharge: existing.fileCharge ? Number(existing.fileCharge) : null,
+    effectedPart: existing.effectedPart, damageDate: existing.damageDate,
+    repairDate: existing.repairDate, remark: existing.remark,
+    updatedBy: deletedByUser?.name,
+  }).catch(() => {});
   res.json({ message: "Claim deleted successfully" });
 });
 

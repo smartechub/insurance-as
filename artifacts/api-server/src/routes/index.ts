@@ -6,6 +6,7 @@ import documentsRouter from "./documents";
 import usersRouter from "./users";
 import auditLogsRouter from "./audit-logs";
 import settingsRouter from "./settings";
+import smtpRouter from "./smtp";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use("/documents", documentsRouter);
 router.use("/users", usersRouter);
 router.use("/audit-logs", auditLogsRouter);
 router.use("/settings", settingsRouter);
+router.use("/smtp", smtpRouter);
 
 export default router;
