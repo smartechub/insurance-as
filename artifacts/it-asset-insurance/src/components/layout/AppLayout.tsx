@@ -9,12 +9,11 @@ import {
   LogOut,
   Menu,
   X,
-  UserCircle,
-  ShieldCheck,
   ChevronRight,
   Bell,
   Shield,
 } from "lucide-react";
+import lightLogo from "@assets/Light_Logo_1774345301483.png";
 import { useGetMe, useLogout } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -49,9 +48,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   if (isLoading || !user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
-        <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center">
-          <ShieldCheck className="w-6 h-6 text-white" />
-        </div>
+        <img src={lightLogo} alt="Light" className="h-12 w-auto" />
         <div className="flex gap-1.5">
           {[0, 1, 2].map(i => (
             <motion.div key={i} className="w-2 h-2 rounded-full bg-indigo-400"
@@ -79,7 +76,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const pageTitle = PAGE_TITLES[location] ?? (location.startsWith("/claims/") ? "Claim Details" : "AssetGuard");
+  const pageTitle = PAGE_TITLES[location] ?? (location.startsWith("/claims/") ? "Claim Details" : "Light");
   const initials = user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
 
   const activeHref = navItems
@@ -111,14 +108,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       )}>
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-5 border-b border-white/10 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="text-white font-display font-bold text-base leading-none">AssetGuard</div>
-              <div className="text-indigo-300/70 text-[10px] font-medium tracking-widest uppercase mt-0.5">Insurance Portal</div>
-            </div>
+          <div className="flex items-center">
+            <img src={lightLogo} alt="Light" className="h-9 w-auto brightness-0 invert" />
           </div>
           <button className="lg:hidden text-slate-400 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
             <X className="w-5 h-5" />

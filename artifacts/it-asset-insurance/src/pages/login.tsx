@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { motion } from "framer-motion";
-import { ShieldCheck, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
+import lightLogo from "@assets/Light_Logo_1774345301483.png";
 import { useLogin, useGetMe } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -42,11 +43,8 @@ export default function Login() {
           className="w-full max-w-[400px]"
         >
           {/* Brand */}
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <ShieldCheck className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-display font-bold text-slate-900">AssetGuard</span>
+          <div className="flex items-center mb-10">
+            <img src={lightLogo} alt="Light" className="h-12 w-auto" />
           </div>
 
           {/* Heading */}
@@ -139,11 +137,8 @@ export default function Login() {
         </div>
 
         {/* Top logo */}
-        <div className="relative flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-indigo-500/30 border border-indigo-400/30 flex items-center justify-center">
-            <ShieldCheck className="w-5 h-5 text-indigo-300" />
-          </div>
-          <span className="text-white font-display font-bold text-lg">AssetGuard</span>
+        <div className="relative flex items-center">
+          <img src={lightLogo} alt="Light" className="h-10 w-auto brightness-0 invert" />
         </div>
 
         {/* Feature list */}
@@ -174,7 +169,7 @@ export default function Login() {
 
         {/* Bottom tag */}
         <div className="relative">
-          <p className="text-slate-500 text-xs">© 2026 AssetGuard · IT Asset Insurance Portal</p>
+          <p className="text-slate-500 text-xs">© 2026 Light · Asset Insurance Portal</p>
         </div>
       </div>
     </div>
