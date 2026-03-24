@@ -108,22 +108,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className={cn(
         "fixed lg:static inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0",
-        "bg-[hsl(228,39%,13%)]",
+        "bg-white border-r border-slate-200",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-5 border-b border-white/10 shrink-0">
+        <div className="h-16 flex items-center justify-between px-5 border-b border-slate-200 shrink-0">
           <div className="flex items-center">
-            <img src={lightLogo} alt="Light" className="h-9 w-auto brightness-0 invert" />
+            <img src={lightLogo} alt="Light" className="h-9 w-auto" />
           </div>
-          <button className="lg:hidden text-slate-400 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
+          <button className="lg:hidden text-slate-400 hover:text-slate-600" onClick={() => setIsMobileMenuOpen(false)}>
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 overflow-y-auto scrollbar-hide">
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3 mb-2">Main Menu</div>
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-2">Main Menu</div>
           <div className="space-y-0.5">
             {navItems.map((item) => {
               const isActive = item.href === activeHref;
@@ -135,13 +135,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   className={cn(
                     "sidebar-item",
                     isActive
-                      ? "bg-indigo-600 text-white shadow-sm shadow-indigo-900/50"
-                      : "text-slate-400 hover:bg-white/8 hover:text-slate-100"
+                      ? "bg-indigo-600 text-white shadow-sm shadow-indigo-200/50"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                   )}
                 >
                   <item.icon className="w-4.5 h-4.5 shrink-0" style={{ width: '18px', height: '18px' }} />
                   <span className="flex-1">{item.label}</span>
-                  {isActive && <ChevronRight className="w-3.5 h-3.5 text-indigo-300" />}
+                  {isActive && <ChevronRight className="w-3.5 h-3.5 text-indigo-200" />}
                 </Link>
               );
             })}
@@ -149,20 +149,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* User card */}
-        <div className="p-3 border-t border-white/10 shrink-0">
-          <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
-            <div className="w-9 h-9 rounded-full bg-indigo-500/30 border border-indigo-400/40 flex items-center justify-center text-indigo-200 font-bold text-sm font-display shrink-0">
+        <div className="p-3 border-t border-slate-200 shrink-0">
+          <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors">
+            <div className="w-9 h-9 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center text-indigo-700 font-bold text-sm font-display shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-white truncate">{user?.name}</div>
+              <div className="text-sm font-semibold text-slate-800 truncate">{user?.name}</div>
               <div className="text-xs text-slate-400 capitalize">{user?.role}</div>
             </div>
             <button
               onClick={handleLogout}
               disabled={logoutMutation.isPending}
               title="Log out"
-              className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
             >
               <LogOut className="w-4 h-4" />
             </button>
