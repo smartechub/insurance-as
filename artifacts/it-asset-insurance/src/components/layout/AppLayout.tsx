@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Bell,
   Shield,
+  Settings,
 } from "lucide-react";
 import lightLogo from "@assets/Light_Logo_1774345301483.png";
 import { useGetMe, useLogout } from "@workspace/api-client-react";
@@ -31,6 +32,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/claims/new": "Create Claim",
   "/users": "User Management",
   "/audit-log": "Audit Log",
+  "/settings": "Settings",
 };
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -69,6 +71,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   if (user?.role === "admin") {
     navItems.push({ label: "Users", href: "/users", icon: Users });
     navItems.push({ label: "Audit Log", href: "/audit-log", icon: Shield });
+    navItems.push({ label: "Settings", href: "/settings", icon: Settings });
   }
 
   const handleLogout = () => {

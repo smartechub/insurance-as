@@ -1,11 +1,24 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useCreateClaim, AssetType } from "@workspace/api-client-react";
+import { useCreateClaim } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, Loader2, UploadCloud, X, FileText, Archive, Image as ImageIcon, FileCheck, Eye } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
+
+interface SettingOption { id: number; value: string; }
+
+function useSettingOptions(category: string) {
+  const [options, setOptions] = useState<string[]>([]);
+  useEffect(() => {
+    fetch(`/api/settings/${category}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((data: SettingOption[]) => setOptions(data.map((o) => o.value)))
+      .catch(() => {});
+  }, [category]);
+  return options;
+}
 
 interface AttachmentState {
   damageImages: File | null;
@@ -316,12 +329,14 @@ export default function CreateClaim() {
   const { toast } = useToast();
   const createMutation = useCreateClaim();
   const [isUploading, setIsUploading] = useState(false);
+  const assetTypeOptions = useSettingOptions("assetTypes");
+  const effectedPartOptions = useSettingOptions("effectedParts");
 
   const [formData, setFormData] = useState({
     employeeId: "",
     employeeName: "",
     assetCode: "",
-    assetType: "Laptop" as AssetType,
+    assetType: "",
     serialNo: "",
     damageDate: "",
     repairDate: "",
@@ -449,7 +464,7 @@ export default function CreateClaim() {
             <InputField label="Employee ID *" name="employeeId" value={formData.employeeId} onChange={handleChange} required />
             <InputField label="Employee Name *" name="employeeName" value={formData.employeeName} onChange={handleChange} required />
             <InputField label="Asset Code *" name="assetCode" value={formData.assetCode} onChange={handleChange} required />
-            <SelectField label="Asset Type" name="assetType" value={formData.assetType} onChange={handleChange} options={Object.values(AssetType)} />
+            <SelectField label="Asset Type" name="assetType" value={formData.assetType} onChange={handleChange} options={assetTypeOptions} placeholder="Select asset type" />
             <InputField label="Serial No" name="serialNo" value={formData.serialNo} onChange={handleChange} />
           </div>
         </div>
@@ -462,7 +477,7 @@ export default function CreateClaim() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <InputField label="Damage Date" type="date" name="damageDate" value={formData.damageDate} onChange={handleChange} />
             <InputField label="Repair Date" type="date" name="repairDate" value={formData.repairDate} onChange={handleChange} />
-            <InputField label="Effected Part" name="effectedPart" value={formData.effectedPart} onChange={handleChange} />
+            <SelectField label="Affected Part" name="effectedPart" value={formData.effectedPart} onChange={handleChange} options={effectedPartOptions} placeholder="Select affected part" />
             <InputField label="Case ID" name="caseId" value={formData.caseId} onChange={handleChange} />
             <InputField label="Payable Amount (₹)" type="number" step="0.01" name="payableAmount" value={formData.payableAmount} onChange={handleChange} />
             <InputField label="Recover Amount (₹)" type="number" step="0.01" name="recoverAmount" value={formData.recoverAmount} onChange={handleChange} />
@@ -604,11 +619,12 @@ function InputField({ label, ...props }: any) {
   );
 }
 
-function SelectField({ label, options, ...props }: any) {
+function SelectField({ label, options, placeholder, ...props }: any) {
   return (
     <div>
       <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">{label}</label>
       <select className="input-base appearance-none" {...props}>
+        {placeholder && <option value="">{placeholder}</option>}
         {options.map((opt: string) => (
           <option key={opt} value={opt}>{opt}</option>
         ))}

@@ -1,5 +1,5 @@
 import { db } from "@workspace/db";
-import { usersTable, claimsTable } from "@workspace/db/schema";
+import { usersTable, claimsTable, settingsOptionsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import bcryptjs from "bcryptjs";
 
@@ -97,6 +97,46 @@ async function seed() {
     ]).onConflictDoNothing();
     console.log("Sample claims seeded");
   }
+
+  const settingsDefaults = [
+    { category: "assetTypes", value: "Laptop" },
+    { category: "assetTypes", value: "Desktop" },
+    { category: "assetTypes", value: "Mobile" },
+    { category: "assetTypes", value: "Tablet" },
+    { category: "assetTypes", value: "Printer" },
+    { category: "assetTypes", value: "Server" },
+    { category: "assetTypes", value: "Other" },
+    { category: "effectedParts", value: "Screen" },
+    { category: "effectedParts", value: "Battery" },
+    { category: "effectedParts", value: "Keyboard" },
+    { category: "effectedParts", value: "Motherboard" },
+    { category: "effectedParts", value: "Hard Drive" },
+    { category: "effectedParts", value: "RAM" },
+    { category: "effectedParts", value: "Charger" },
+    { category: "effectedParts", value: "Other" },
+    { category: "departments", value: "IT" },
+    { category: "departments", value: "HR" },
+    { category: "departments", value: "Finance" },
+    { category: "departments", value: "Operations" },
+    { category: "departments", value: "Sales" },
+    { category: "departments", value: "Management" },
+    { category: "claimStatuses", value: "Pending" },
+    { category: "claimStatuses", value: "Processing" },
+    { category: "claimStatuses", value: "Approved" },
+    { category: "claimStatuses", value: "Rejected" },
+    { category: "claimStatuses", value: "Settled" },
+  ];
+
+  const existingSettings = await db.select().from(settingsOptionsTable);
+  for (const { category, value } of settingsDefaults) {
+    const dup = existingSettings.find(
+      (r) => r.category === category && r.value.toLowerCase() === value.toLowerCase()
+    );
+    if (!dup) {
+      await db.insert(settingsOptionsTable).values({ category, value });
+    }
+  }
+  console.log("Settings options seeded");
 
   console.log("Seeding complete!");
   process.exit(0);

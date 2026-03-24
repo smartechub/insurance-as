@@ -5,6 +5,7 @@ import claimsRouter from "./claims";
 import documentsRouter from "./documents";
 import usersRouter from "./users";
 import auditLogsRouter from "./audit-logs";
+import settingsRouter from "./settings";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use("/claims", claimsRouter);
 router.use("/documents", documentsRouter);
 router.use("/users", usersRouter);
 router.use("/audit-logs", auditLogsRouter);
+router.use("/settings", settingsRouter);
 
 export default router;
