@@ -43,9 +43,14 @@ export const UserRole = {
 
 export interface User {
   id: number;
+  firstName?: string;
+  lastName?: string;
   name: string;
   email: string;
   role: UserRole;
+  employeeId?: string;
+  designation?: string;
+  department?: string;
   createdAt?: string;
 }
 
@@ -63,11 +68,15 @@ export const CreateUserRequestRole = {
 } as const;
 
 export interface CreateUserRequest {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   /** @minLength 6 */
   password: string;
   role: CreateUserRequestRole;
+  employeeId?: string;
+  designation?: string;
+  department?: string;
 }
 
 export type UpdateUserRequestRole =
@@ -79,11 +88,21 @@ export const UpdateUserRequestRole = {
 } as const;
 
 export interface UpdateUserRequest {
-  name?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   /** @minLength 6 */
   password?: string;
   role?: UpdateUserRequestRole;
+  employeeId?: string;
+  designation?: string;
+  department?: string;
+}
+
+export interface BulkUploadResult {
+  created: number;
+  skipped: number;
+  errors: string[];
 }
 
 export type ClaimStatus = (typeof ClaimStatus)[keyof typeof ClaimStatus];
@@ -213,3 +232,7 @@ export const GetClaimsSortOrder = {
   asc: "asc",
   desc: "desc",
 } as const;
+
+export type BulkUploadUsersBody = {
+  file?: Blob;
+};

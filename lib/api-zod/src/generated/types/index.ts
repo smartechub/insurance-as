@@ -8,6 +8,8 @@
 
 export * from "./assetType";
 export * from "./authResponse";
+export * from "./bulkUploadResult";
+export * from "./bulkUploadUsersBody";
 export * from "./claim";
 export * from "./claimStats";
 export * from "./claimStatsClaimsByMonthItem";

@@ -4,10 +4,15 @@ import { z } from "zod/v4";
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   role: text("role", { enum: ["admin", "user"] }).notNull().default("user"),
+  employeeId: text("employee_id"),
+  designation: text("designation"),
+  department: text("department"),
   resetToken: text("reset_token"),
   resetTokenExpiry: timestamp("reset_token_expiry"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

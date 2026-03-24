@@ -9,8 +9,13 @@ import type { UserRole } from "./userRole";
 
 export interface User {
   id: number;
+  firstName?: string;
+  lastName?: string;
   name: string;
   email: string;
   role: UserRole;
+  employeeId?: string;
+  designation?: string;
+  department?: string;
   createdAt?: string;
 }

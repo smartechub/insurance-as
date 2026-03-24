@@ -8,9 +8,13 @@
 import type { UpdateUserRequestRole } from "./updateUserRequestRole";
 
 export interface UpdateUserRequest {
-  name?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   /** @minLength 6 */
   password?: string;
   role?: UpdateUserRequestRole;
+  employeeId?: string;
+  designation?: string;
+  department?: string;
 }

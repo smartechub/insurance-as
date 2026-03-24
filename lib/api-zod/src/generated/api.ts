@@ -27,9 +27,14 @@ export const LoginBody = zod.object({
 export const LoginResponse = zod.object({
   user: zod.object({
     id: zod.number(),
+    firstName: zod.string().optional(),
+    lastName: zod.string().optional(),
     name: zod.string(),
     email: zod.string(),
     role: zod.enum(["admin", "user"]),
+    employeeId: zod.string().optional(),
+    designation: zod.string().optional(),
+    department: zod.string().optional(),
     createdAt: zod.string().optional(),
   }),
   message: zod.string(),
@@ -47,9 +52,14 @@ export const LogoutResponse = zod.object({
  */
 export const GetMeResponse = zod.object({
   id: zod.number(),
+  firstName: zod.string().optional(),
+  lastName: zod.string().optional(),
   name: zod.string(),
   email: zod.string(),
   role: zod.enum(["admin", "user"]),
+  employeeId: zod.string().optional(),
+  designation: zod.string().optional(),
+  department: zod.string().optional(),
   createdAt: zod.string().optional(),
 });
 
@@ -301,9 +311,14 @@ export const DeleteDocumentResponse = zod.object({
  */
 export const GetUsersResponseItem = zod.object({
   id: zod.number(),
+  firstName: zod.string().optional(),
+  lastName: zod.string().optional(),
   name: zod.string(),
   email: zod.string(),
   role: zod.enum(["admin", "user"]),
+  employeeId: zod.string().optional(),
+  designation: zod.string().optional(),
+  department: zod.string().optional(),
   createdAt: zod.string().optional(),
 });
 export const GetUsersResponse = zod.array(GetUsersResponseItem);
@@ -314,10 +329,27 @@ export const GetUsersResponse = zod.array(GetUsersResponseItem);
 export const createUserBodyPasswordMin = 6;
 
 export const CreateUserBody = zod.object({
-  name: zod.string(),
+  firstName: zod.string(),
+  lastName: zod.string(),
   email: zod.string().email(),
   password: zod.string().min(createUserBodyPasswordMin),
   role: zod.enum(["admin", "user"]),
+  employeeId: zod.string().optional(),
+  designation: zod.string().optional(),
+  department: zod.string().optional(),
+});
+
+/**
+ * @summary Bulk upload users via CSV (admin only)
+ */
+export const BulkUploadUsersBody = zod.object({
+  file: zod.instanceof(File).optional(),
+});
+
+export const BulkUploadUsersResponse = zod.object({
+  created: zod.number(),
+  skipped: zod.number(),
+  errors: zod.array(zod.string()),
 });
 
 /**
@@ -330,17 +362,26 @@ export const UpdateUserParams = zod.object({
 export const updateUserBodyPasswordMin = 6;
 
 export const UpdateUserBody = zod.object({
-  name: zod.string().optional(),
+  firstName: zod.string().optional(),
+  lastName: zod.string().optional(),
   email: zod.string().email().optional(),
   password: zod.string().min(updateUserBodyPasswordMin).optional(),
   role: zod.enum(["admin", "user"]).optional(),
+  employeeId: zod.string().optional(),
+  designation: zod.string().optional(),
+  department: zod.string().optional(),
 });
 
 export const UpdateUserResponse = zod.object({
   id: zod.number(),
+  firstName: zod.string().optional(),
+  lastName: zod.string().optional(),
   name: zod.string(),
   email: zod.string(),
   role: zod.enum(["admin", "user"]),
+  employeeId: zod.string().optional(),
+  designation: zod.string().optional(),
+  department: zod.string().optional(),
   createdAt: zod.string().optional(),
 });
 

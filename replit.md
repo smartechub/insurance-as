@@ -46,7 +46,7 @@ artifacts-monorepo/
 
 ## Database Tables
 
-- **users**: id, name, email, password, role (admin/user), resetToken, createdAt
+- **users**: id, firstName, lastName, name, email, password, role (admin/user), employeeId, designation, department, resetToken, createdAt
 - **claims**: id, employeeId, employeeName, assetCode, assetType, serialNo, damageDate, repairDate, effectedPart, caseId, payableAmount, recoverAmount, fileCharge, claimStatus, employeeFileChargeStatus, remark, createdBy, timestamps
 - **documents**: id, claimId, fileName, filePath, fileType, documentType, createdAt
 
@@ -71,6 +71,8 @@ artifacts-monorepo/
 - `POST /api/users` — Create user (admin only)
 - `PUT /api/users/:id` — Update user (admin only)
 - `DELETE /api/users/:id` — Delete user (admin only)
+- `GET /api/users/export` — Export all users as CSV (admin only)
+- `POST /api/users/bulk-upload` — Bulk upload users via CSV (admin only; default password: Welcome@123)
 
 ## Frontend Pages
 

@@ -8,9 +8,13 @@
 import type { CreateUserRequestRole } from "./createUserRequestRole";
 
 export interface CreateUserRequest {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   /** @minLength 6 */
   password: string;
   role: CreateUserRequestRole;
+  employeeId?: string;
+  designation?: string;
+  department?: string;
 }

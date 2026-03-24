@@ -18,6 +18,8 @@ import type {
 
 import type {
   AuthResponse,
+  BulkUploadResult,
+  BulkUploadUsersBody,
   Claim,
   ClaimListResponse,
   ClaimStats,
@@ -1358,6 +1360,169 @@ export const useCreateUser = <
   TContext
 > => {
   return useMutation(getCreateUserMutationOptions(options));
+};
+
+/**
+ * @summary Export all users as CSV (admin only)
+ */
+export const getExportUsersUrl = () => {
+  return `/api/users/export`;
+};
+
+export const exportUsers = async (options?: RequestInit): Promise<string> => {
+  return customFetch<string>(getExportUsersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportUsersQueryKey = () => {
+  return [`/api/users/export`] as const;
+};
+
+export const getExportUsersQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportUsers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof exportUsers>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getExportUsersQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof exportUsers>>> = ({
+    signal,
+  }) => exportUsers({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportUsers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportUsersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportUsers>>
+>;
+export type ExportUsersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Export all users as CSV (admin only)
+ */
+
+export function useExportUsers<
+  TData = Awaited<ReturnType<typeof exportUsers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof exportUsers>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportUsersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Bulk upload users via CSV (admin only)
+ */
+export const getBulkUploadUsersUrl = () => {
+  return `/api/users/bulk-upload`;
+};
+
+export const bulkUploadUsers = async (
+  bulkUploadUsersBody: BulkUploadUsersBody,
+  options?: RequestInit,
+): Promise<BulkUploadResult> => {
+  const formData = new FormData();
+  if (bulkUploadUsersBody.file !== undefined) {
+    formData.append(`file`, bulkUploadUsersBody.file);
+  }
+
+  return customFetch<BulkUploadResult>(getBulkUploadUsersUrl(), {
+    ...options,
+    method: "POST",
+    body: formData,
+  });
+};
+
+export const getBulkUploadUsersMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkUploadUsers>>,
+    TError,
+    { data: BodyType<BulkUploadUsersBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bulkUploadUsers>>,
+  TError,
+  { data: BodyType<BulkUploadUsersBody> },
+  TContext
+> => {
+  const mutationKey = ["bulkUploadUsers"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bulkUploadUsers>>,
+    { data: BodyType<BulkUploadUsersBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return bulkUploadUsers(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BulkUploadUsersMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bulkUploadUsers>>
+>;
+export type BulkUploadUsersMutationBody = BodyType<BulkUploadUsersBody>;
+export type BulkUploadUsersMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Bulk upload users via CSV (admin only)
+ */
+export const useBulkUploadUsers = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkUploadUsers>>,
+    TError,
+    { data: BodyType<BulkUploadUsersBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof bulkUploadUsers>>,
+  TError,
+  { data: BodyType<BulkUploadUsersBody> },
+  TContext
+> => {
+  return useMutation(getBulkUploadUsersMutationOptions(options));
 };
 
 /**
