@@ -1,10 +1,12 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcryptjs from "bcryptjs";
+import crypto from "crypto";
 import multer from "multer";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logAudit } from "../lib/audit";
+import { sendWelcomeEmail, sendAdminPasswordResetEmail } from "../lib/email";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -40,6 +42,34 @@ const USER_SELECT = {
 
 function formatUser(u: any) {
   return { ...u, createdAt: u.createdAt?.toISOString() };
+}
+
+function generateSecurePassword(): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghjkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const special = "@#$!";
+  const all = upper + lower + digits + special;
+
+  const getChar = (set: string) => set[crypto.randomInt(set.length)];
+
+  const chars = [
+    getChar(upper),
+    getChar(upper),
+    getChar(lower),
+    getChar(lower),
+    getChar(digits),
+    getChar(digits),
+    getChar(special),
+    ...Array.from({ length: 5 }, () => getChar(all)),
+  ];
+
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+
+  return chars.join("");
 }
 
 router.get("/export", requireAuth, requireAdmin, async (req: Request, res: Response) => {
@@ -102,10 +132,12 @@ router.post("/bulk-upload", requireAuth, requireAdmin, upload.single("file"), as
     const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email));
     if (existing.length > 0) { skipped++; continue; }
 
-    const defaultPassword = await bcryptjs.hash("Welcome@123", 10);
+    const plainPassword = generateSecurePassword();
+    const hashedPassword = await bcryptjs.hash(plainPassword, 10);
     try {
-      await db.insert(usersTable).values({ firstName: firstName || null, lastName: lastName || null, name, email, password: defaultPassword, role: validRole, employeeId, designation, department });
+      await db.insert(usersTable).values({ firstName: firstName || null, lastName: lastName || null, name, email, password: hashedPassword, role: validRole, employeeId, designation, department });
       created++;
+      await sendWelcomeEmail({ name, email, password: plainPassword, role: validRole }).catch(() => {});
     } catch (err: any) {
       errors.push(`Row ${i + 1}: ${err.message}`);
     }
@@ -122,9 +154,13 @@ router.get("/", requireAuth, requireAdmin, async (req: Request, res: Response) =
 });
 
 router.post("/", requireAuth, requireAdmin, async (req: Request, res: Response) => {
-  const { firstName, lastName, email, password, role, employeeId, designation, department } = req.body;
-  if (!firstName || !lastName || !email || !password || !role) {
-    res.status(400).json({ error: "First name, last name, email, password and role are required" });
+  const { firstName, lastName, email, password, autoGeneratePassword, role, employeeId, designation, department } = req.body;
+  if (!firstName || !lastName || !email || !role) {
+    res.status(400).json({ error: "First name, last name, email and role are required" });
+    return;
+  }
+  if (!autoGeneratePassword && !password) {
+    res.status(400).json({ error: "Password is required when not auto-generating" });
     return;
   }
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email));
@@ -132,14 +168,56 @@ router.post("/", requireAuth, requireAdmin, async (req: Request, res: Response) 
     res.status(400).json({ error: "Email already in use" });
     return;
   }
+  const plainPassword = autoGeneratePassword ? generateSecurePassword() : password;
   const name = `${firstName} ${lastName}`.trim();
-  const hashed = await bcryptjs.hash(password, 10);
+  const hashed = await bcryptjs.hash(plainPassword, 10);
   const [user] = await db.insert(usersTable).values({
     firstName, lastName, name, email, password: hashed, role,
     employeeId: employeeId || null, designation: designation || null, department: department || null,
   }).returning(USER_SELECT);
-  await logAudit({ req, action: "USER_CREATED", category: "USERS", resourceType: "user", resourceId: user.id, description: `Created user: ${name} (${email}) with role ${role}`, metadata: { name, email, role } });
-  res.status(201).json(formatUser(user));
+  await logAudit({ req, action: "USER_CREATED", category: "USERS", resourceType: "user", resourceId: user.id, description: `Created user: ${name} (${email}) with role ${role}`, metadata: { name, email, role, autoGeneratePassword: !!autoGeneratePassword } });
+
+  await sendWelcomeEmail({ name, email, password: plainPassword, role }).catch(() => {});
+
+  res.status(201).json({
+    ...formatUser(user),
+    ...(autoGeneratePassword ? { temporaryPassword: plainPassword } : {}),
+  });
+});
+
+router.post("/:id/reset-password", requireAuth, requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const { newPassword, autoGeneratePassword } = req.body;
+
+  if (!autoGeneratePassword && !newPassword) {
+    res.status(400).json({ error: "New password is required when not auto-generating" });
+    return;
+  }
+
+  const [target] = await db.select(USER_SELECT).from(usersTable).where(eq(usersTable.id, id));
+  if (!target) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const plainPassword = autoGeneratePassword ? generateSecurePassword() : newPassword;
+  const hashed = await bcryptjs.hash(plainPassword, 10);
+  await db.update(usersTable).set({ password: hashed, resetToken: null, resetTokenExpiry: null }).where(eq(usersTable.id, id));
+
+  const adminName = (req.session as any).userName ?? "Administrator";
+  await sendAdminPasswordResetEmail({
+    name: target.name,
+    email: target.email,
+    newPassword: plainPassword,
+    adminName,
+  }).catch(() => {});
+
+  await logAudit({ req, action: "USER_PASSWORD_RESET", category: "USERS", resourceType: "user", resourceId: id, description: `Admin reset password for: ${target.name} (${target.email})`, metadata: { email: target.email, autoGenerated: !!autoGeneratePassword } });
+
+  res.json({
+    message: "Password reset successfully",
+    ...(autoGeneratePassword ? { temporaryPassword: plainPassword } : {}),
+  });
 });
 
 router.put("/:id", requireAuth, requireAdmin, async (req: Request, res: Response) => {

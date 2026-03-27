@@ -12,7 +12,8 @@ export interface CreateUserRequest {
   lastName: string;
   email: string;
   /** @minLength 6 */
-  password: string;
+  password?: string;
+  autoGeneratePassword?: boolean;
   role: CreateUserRequestRole;
   employeeId?: string;
   designation?: string;

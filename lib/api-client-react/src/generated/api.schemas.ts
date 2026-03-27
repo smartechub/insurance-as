@@ -72,11 +72,27 @@ export interface CreateUserRequest {
   lastName: string;
   email: string;
   /** @minLength 6 */
-  password: string;
+  password?: string;
+  autoGeneratePassword?: boolean;
   role: CreateUserRequestRole;
   employeeId?: string;
   designation?: string;
   department?: string;
+}
+
+export type CreateUserResponse = User & {
+  temporaryPassword?: string;
+};
+
+export interface ResetUserPasswordRequest {
+  /** @minLength 6 */
+  newPassword?: string;
+  autoGeneratePassword?: boolean;
+}
+
+export interface ResetUserPasswordResponse {
+  message: string;
+  temporaryPassword?: string;
 }
 
 export type UpdateUserRequestRole =

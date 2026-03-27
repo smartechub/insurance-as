@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 // Pages
 import Login from "@/pages/login";
 import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 import Dashboard from "@/pages/dashboard";
 import Claims from "@/pages/claims";
 import CreateClaim from "@/pages/create-claim";
@@ -34,6 +35,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       
       {/* Protected Routes rendered within AppLayout */}
       <Route path="/" component={Dashboard} />

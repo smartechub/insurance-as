@@ -1,9 +1,12 @@
 import { useState, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useGetUsers, useCreateUser, useDeleteUser, useGetMe, UserRole } from "@workspace/api-client-react";
+import { useGetUsers, useCreateUser, useDeleteUser, useGetMe, useResetUserPassword, UserRole } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { Shield, Trash2, Plus, X, Loader2, Download, Upload, FileDown } from "lucide-react";
+import {
+  Shield, Trash2, Plus, X, Loader2, Download, Upload, FileDown,
+  KeyRound, Eye, EyeOff, RefreshCw, Copy, CheckCircle2, Wand2
+} from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 const EMPTY_FORM = {
@@ -17,25 +20,17 @@ const EMPTY_FORM = {
   department: "",
 };
 
-
 function exportToCSV(users: any[]) {
   const headers = ["First Name", "Last Name", "Employee ID", "Email", "Role", "Designation", "Department"];
   const rows = users.map(u => [
-    u.firstName ?? "",
-    u.lastName ?? "",
-    u.employeeId ?? "",
-    u.email,
-    u.role,
-    u.designation ?? "",
-    u.department ?? "",
+    u.firstName ?? "", u.lastName ?? "", u.employeeId ?? "", u.email,
+    u.role, u.designation ?? "", u.department ?? "",
   ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
   const csv = [headers.join(","), ...rows].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
-  a.download = "users.csv";
-  a.click();
+  a.href = url; a.download = "users.csv"; a.click();
   URL.revokeObjectURL(url);
 }
 
@@ -50,10 +45,27 @@ function downloadSampleCSV() {
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
-  a.download = "users_sample.csv";
-  a.click();
+  a.href = url; a.download = "users_sample.csv"; a.click();
   URL.revokeObjectURL(url);
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="p-1.5 rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+      title="Copy to clipboard"
+    >
+      {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+    </button>
+  );
 }
 
 export default function Users() {
@@ -61,13 +73,24 @@ export default function Users() {
   const { data: currentUser } = useGetMe();
   const createMutation = useCreateUser();
   const deleteMutation = useDeleteUser();
+  const resetPasswordMutation = useResetUserPassword();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [autoGenPassword, setAutoGenPassword] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [isBulkUploading, setIsBulkUploading] = useState(false);
+
+  const [createdPasswordInfo, setCreatedPasswordInfo] = useState<{ name: string; email: string; password: string } | null>(null);
+
+  const [resetModalUser, setResetModalUser] = useState<{ id: number; name: string; email: string } | null>(null);
+  const [resetAutoGen, setResetAutoGen] = useState(true);
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [showResetPass, setShowResetPass] = useState(false);
+  const [resetResult, setResetResult] = useState<{ password: string } | null>(null);
 
   if (currentUser?.role !== "admin") {
     return (
@@ -89,19 +112,30 @@ export default function Users() {
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: formData.email,
-          password: formData.password,
           role: formData.role,
           employeeId: formData.employeeId || undefined,
           designation: formData.designation || undefined,
           department: formData.department || undefined,
+          ...(autoGenPassword ? { autoGeneratePassword: true } : { password: formData.password }),
         },
       },
       {
-        onSuccess: () => {
-          toast({ title: "User created successfully" });
+        onSuccess: (data) => {
+          queryClient.invalidateQueries({ queryKey: ["/api/users"] });
           setIsModalOpen(false);
           setFormData(EMPTY_FORM);
-          queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+          setAutoGenPassword(true);
+          setShowPassword(false);
+          const name = `${formData.firstName} ${formData.lastName}`.trim();
+          if ((data as any).temporaryPassword) {
+            setCreatedPasswordInfo({
+              name,
+              email: formData.email,
+              password: (data as any).temporaryPassword,
+            });
+          } else {
+            toast({ title: "User created successfully", description: `An email has been sent to ${formData.email}` });
+          }
         },
         onError: (err) =>
           toast({ variant: "destructive", title: "Error", description: err.message }),
@@ -123,6 +157,34 @@ export default function Users() {
     }
   };
 
+  const handleResetPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetModalUser) return;
+    resetPasswordMutation.mutate(
+      {
+        id: resetModalUser.id,
+        data: {
+          ...(resetAutoGen ? { autoGeneratePassword: true } : { newPassword: resetNewPassword }),
+        },
+      },
+      {
+        onSuccess: (data) => {
+          if ((data as any).temporaryPassword) {
+            setResetResult({ password: (data as any).temporaryPassword });
+          } else {
+            toast({ title: "Password reset", description: `Password updated and email sent to ${resetModalUser.email}` });
+            setResetModalUser(null);
+            setResetNewPassword("");
+            setResetAutoGen(true);
+          }
+        },
+        onError: (err) => {
+          toast({ variant: "destructive", title: "Error", description: err.message });
+        },
+      }
+    );
+  };
+
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -131,18 +193,14 @@ export default function Users() {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/users/bulk-upload", {
-        method: "POST",
-        body: fd,
-        credentials: "include",
-      });
+      const res = await fetch("/api/users/bulk-upload", { method: "POST", body: fd, credentials: "include" });
       const data = await res.json();
       if (!res.ok) {
         toast({ variant: "destructive", title: "Upload failed", description: data.error });
       } else {
         toast({
           title: "Bulk upload complete",
-          description: `${data.created} created, ${data.skipped} skipped${data.errors.length ? `, ${data.errors.length} errors` : ""}`,
+          description: `${data.created} created, ${data.skipped} skipped${data.errors.length ? `, ${data.errors.length} errors` : ""}. Welcome emails sent.`,
         });
         queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       }
@@ -237,12 +295,26 @@ export default function Users() {
                       <td className="px-5 py-3.5 text-sm text-slate-600">{user.designation || <span className="text-slate-300">—</span>}</td>
                       <td className="px-5 py-3.5 text-sm text-slate-600">{user.department || <span className="text-slate-300">—</span>}</td>
                       <td className="px-5 py-3.5 text-right">
-                        {user.id !== currentUser?.id && (
-                          <button onClick={() => handleDelete(user.id)}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-70 group-hover:opacity-100">
-                            <Trash2 className="w-4 h-4" />
+                        <div className="flex items-center justify-end gap-1 opacity-70 group-hover:opacity-100">
+                          <button
+                            onClick={() => {
+                              setResetModalUser({ id: user.id, name: fullName ?? user.name, email: user.email });
+                              setResetAutoGen(true);
+                              setResetNewPassword("");
+                              setResetResult(null);
+                            }}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Reset password"
+                          >
+                            <KeyRound className="w-4 h-4" />
                           </button>
-                        )}
+                          {user.id !== currentUser?.id && (
+                            <button onClick={() => handleDelete(user.id)}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -267,10 +339,10 @@ export default function Users() {
               <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
                 <div>
                   <h3 className="text-base font-display font-bold text-slate-900">Add New User</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Fill in the details below to create a new account.</p>
+                  <p className="text-xs text-slate-500 mt-0.5">An email with credentials will be sent to the user.</p>
                 </div>
                 <button
-                  onClick={() => { setIsModalOpen(false); setFormData(EMPTY_FORM); }}
+                  onClick={() => { setIsModalOpen(false); setFormData(EMPTY_FORM); setAutoGenPassword(true); setShowPassword(false); }}
                   className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                 >
                   <X className="w-4 h-4" />
@@ -300,7 +372,60 @@ export default function Users() {
                       <option value="admin">Admin</option>
                     </select>
                   </div>
-                  {field("Password", "password", "password", true)}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+                      Password <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex gap-2 mb-2">
+                      <button
+                        type="button"
+                        onClick={() => setAutoGenPassword(true)}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-semibold transition-colors border ${
+                          autoGenPassword
+                            ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                            : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                        }`}
+                      >
+                        <Wand2 className="w-3.5 h-3.5" /> Auto-generate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAutoGenPassword(false)}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-semibold transition-colors border ${
+                          !autoGenPassword
+                            ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                            : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                        }`}
+                      >
+                        <KeyRound className="w-3.5 h-3.5" /> Set manually
+                      </button>
+                    </div>
+                    {autoGenPassword ? (
+                      <div className="px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-100 text-xs text-indigo-600 flex items-center gap-2">
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        A secure password will be auto-generated and emailed.
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          required={!autoGenPassword}
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          className="input-base pr-9"
+                          placeholder="Min. 6 characters"
+                          minLength={6}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(s => !s)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   {field("Designation", "designation")}
@@ -312,10 +437,205 @@ export default function Users() {
                     disabled={createMutation.isPending}
                     className="w-full btn-primary justify-center"
                   >
-                    {createMutation.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</> : "Create User"}
+                    {createMutation.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</> : "Create User & Send Email"}
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Generated Password Info Modal (after user creation with auto-gen) */}
+      <AnimatePresence>
+        {createdPasswordInfo && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-xl w-full max-w-md shadow-2xl shadow-slate-900/20 overflow-hidden"
+            >
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-bold text-slate-900">User Created Successfully</h3>
+                    <p className="text-xs text-slate-500">A welcome email has been sent to the user.</p>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-5">
+                  <p className="text-xs font-bold text-amber-700 uppercase tracking-wide mb-1">Note this password</p>
+                  <p className="text-xs text-amber-700 mb-3">This is the auto-generated password. Save it somewhere safe — it won't be shown again.</p>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between bg-white rounded border border-amber-200 px-3 py-2">
+                      <span className="text-xs text-slate-500 font-medium">User</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-semibold text-slate-700">{createdPasswordInfo.name}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between bg-white rounded border border-amber-200 px-3 py-2">
+                      <span className="text-xs text-slate-500 font-medium">Email</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-mono text-slate-700">{createdPasswordInfo.email}</span>
+                        <CopyButton text={createdPasswordInfo.email} />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between bg-white rounded border border-amber-200 px-3 py-2">
+                      <span className="text-xs text-slate-500 font-medium">Password</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm font-mono font-bold text-indigo-700 tracking-wider">{createdPasswordInfo.password}</span>
+                        <CopyButton text={createdPasswordInfo.password} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setCreatedPasswordInfo(null)}
+                  className="w-full btn-primary justify-center"
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Reset Password Modal */}
+      <AnimatePresence>
+        {resetModalUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-xl w-full max-w-md shadow-2xl shadow-slate-900/20 overflow-hidden"
+            >
+              {resetResult ? (
+                <div className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full bg-cyan-100 flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="w-5 h-5 text-cyan-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-display font-bold text-slate-900">Password Reset</h3>
+                      <p className="text-xs text-slate-500">A notification email has been sent to the user.</p>
+                    </div>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-5">
+                    <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-1">New Password</p>
+                    <p className="text-xs text-blue-600 mb-3">Share this securely with <strong>{resetModalUser.name}</strong> and ask them to change it after logging in.</p>
+                    <div className="flex items-center justify-between bg-white rounded border border-blue-200 px-3 py-2.5">
+                      <span className="text-sm font-mono font-bold text-indigo-700 tracking-wider">{resetResult.password}</span>
+                      <CopyButton text={resetResult.password} />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { setResetModalUser(null); setResetResult(null); setResetNewPassword(""); setResetAutoGen(true); }}
+                    className="w-full btn-primary justify-center"
+                  >
+                    Done
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                    <div>
+                      <h3 className="text-base font-display font-bold text-slate-900">Reset Password</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">{resetModalUser.name} · {resetModalUser.email}</p>
+                    </div>
+                    <button
+                      onClick={() => { setResetModalUser(null); setResetNewPassword(""); setResetAutoGen(true); setResetResult(null); }}
+                      className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <form onSubmit={handleResetPassword} className="p-6 space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                        Password Method
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setResetAutoGen(true)}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-colors border ${
+                            resetAutoGen
+                              ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                              : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                          }`}
+                        >
+                          <Wand2 className="w-3.5 h-3.5" /> Auto-generate
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setResetAutoGen(false)}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-colors border ${
+                            !resetAutoGen
+                              ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                              : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                          }`}
+                        >
+                          <KeyRound className="w-3.5 h-3.5" /> Set manually
+                        </button>
+                      </div>
+                    </div>
+
+                    {resetAutoGen ? (
+                      <div className="px-3 py-2.5 rounded-lg bg-indigo-50 border border-indigo-100 text-xs text-indigo-600 flex items-center gap-2">
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        A secure password will be generated. User will receive an email notification.
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+                          New Password <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showResetPass ? "text" : "password"}
+                            required
+                            value={resetNewPassword}
+                            onChange={(e) => setResetNewPassword(e.target.value)}
+                            className="input-base pr-9"
+                            placeholder="Min. 6 characters"
+                            minLength={6}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowResetPass(s => !s)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          >
+                            {showResetPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">User will receive an email with the new password.</p>
+                      </div>
+                    )}
+
+                    <div className="pt-2">
+                      <button
+                        type="submit"
+                        disabled={resetPasswordMutation.isPending}
+                        className="w-full btn-primary justify-center"
+                      >
+                        {resetPasswordMutation.isPending
+                          ? <><Loader2 className="w-4 h-4 animate-spin" /> Resetting...</>
+                          : <><KeyRound className="w-4 h-4" /> Reset Password & Notify User</>
+                        }
+                      </button>
+                    </div>
+                  </form>
+                </>
+              )}
             </motion.div>
           </div>
         )}

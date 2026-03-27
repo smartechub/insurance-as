@@ -332,7 +332,8 @@ export const CreateUserBody = zod.object({
   firstName: zod.string(),
   lastName: zod.string(),
   email: zod.string().email(),
-  password: zod.string().min(createUserBodyPasswordMin),
+  password: zod.string().min(createUserBodyPasswordMin).optional(),
+  autoGeneratePassword: zod.boolean().optional(),
   role: zod.enum(["admin", "user"]),
   employeeId: zod.string().optional(),
   designation: zod.string().optional(),
@@ -394,4 +395,23 @@ export const DeleteUserParams = zod.object({
 
 export const DeleteUserResponse = zod.object({
   message: zod.string(),
+});
+
+/**
+ * @summary Reset a user's password (admin only)
+ */
+export const ResetUserPasswordParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const resetUserPasswordBodyNewPasswordMin = 6;
+
+export const ResetUserPasswordBody = zod.object({
+  newPassword: zod.string().min(resetUserPasswordBodyNewPasswordMin).optional(),
+  autoGeneratePassword: zod.boolean().optional(),
+});
+
+export const ResetUserPasswordResponse = zod.object({
+  message: zod.string(),
+  temporaryPassword: zod.string().optional(),
 });

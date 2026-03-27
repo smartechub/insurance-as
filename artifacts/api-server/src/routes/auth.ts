@@ -5,6 +5,7 @@ import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logAudit } from "../lib/audit";
+import { sendForgotPasswordEmail } from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -73,6 +74,16 @@ router.post("/forgot-password", async (req: Request, res: Response) => {
     const token = crypto.randomBytes(32).toString("hex");
     const expiry = new Date(Date.now() + 3600000);
     await db.update(usersTable).set({ resetToken: token, resetTokenExpiry: expiry }).where(eq(usersTable.id, user.id));
+
+    const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, "") || `${req.protocol}://${req.get("host")}`;
+    const resetLink = `${origin}/reset-password?token=${token}`;
+
+    await sendForgotPasswordEmail({
+      name: user.name,
+      email: user.email,
+      resetLink,
+    }).catch(() => {});
+
     await logAudit({ req, action: "PASSWORD_RESET_REQUESTED", category: "AUTH", description: `Password reset requested for: ${email}`, userId: user.id, userName: user.name, userEmail: user.email, userRole: user.role });
   }
   res.json({ message: "If an account exists with this email, a reset link has been sent." });
