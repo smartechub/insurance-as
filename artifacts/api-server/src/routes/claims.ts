@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { claimsTable, documentsTable, usersTable } from "@workspace/db/schema";
-import { eq, ilike, or, desc, asc, count, sql } from "drizzle-orm";
+import { claimsTable, documentsTable, usersTable, auditLogsTable } from "@workspace/db/schema";
+import { eq, ilike, or, desc, asc, count, sql, and } from "drizzle-orm";
 import { logAudit } from "../lib/audit";
 import { sendClaimNotification } from "../lib/email";
 
@@ -155,6 +155,21 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
     changes: changes.join(" · ") || undefined,
   }).catch(() => {});
   res.json(serializeClaim(updated));
+});
+
+router.get("/:id/history", requireAuth, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const logs = await db
+    .select()
+    .from(auditLogsTable)
+    .where(
+      and(
+        eq(auditLogsTable.resourceType, "claim"),
+        eq(auditLogsTable.resourceId, String(id))
+      )
+    )
+    .orderBy(desc(auditLogsTable.createdAt));
+  res.json(logs.map((l) => ({ ...l, createdAt: l.createdAt?.toISOString() })));
 });
 
 router.delete("/:id", requireAuth, requireAdmin, async (req: Request, res: Response) => {

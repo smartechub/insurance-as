@@ -72,6 +72,50 @@ router.post("/", requireAdmin, async (req: Request, res: Response) => {
   res.status(201).json(row);
 });
 
+router.put("/:id", requireAdmin, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  const { value } = req.body as { value: string };
+  if (!value || !value.trim()) {
+    res.status(400).json({ error: "value is required" });
+    return;
+  }
+
+  const [existing] = await db
+    .select()
+    .from(settingsOptionsTable)
+    .where(eq(settingsOptionsTable.id, id));
+
+  if (!existing) {
+    res.status(404).json({ error: "Option not found" });
+    return;
+  }
+
+  const duplicates = await db
+    .select()
+    .from(settingsOptionsTable)
+    .where(eq(settingsOptionsTable.category, existing.category));
+
+  const duplicate = duplicates.find(
+    (r) => r.id !== id && r.value.toLowerCase() === value.trim().toLowerCase()
+  );
+  if (duplicate) {
+    res.status(409).json({ error: "Option already exists" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(settingsOptionsTable)
+    .set({ value: value.trim() })
+    .where(eq(settingsOptionsTable.id, id))
+    .returning();
+
+  res.json(updated);
+});
+
 router.delete("/:id", requireAdmin, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (isNaN(id)) {
