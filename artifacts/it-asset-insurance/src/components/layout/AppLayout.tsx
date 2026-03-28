@@ -13,7 +13,6 @@ import {
   Bell,
   Shield,
   Settings,
-  BookOpen,
   Database,
 } from "lucide-react";
 import lightLogo from "@assets/Light_Logo_1774345301483.png";
@@ -74,7 +73,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const navItems = [...NAV];
   if (user?.role === "admin") {
-    navItems.push({ label: "Policies", href: "/policies", icon: BookOpen });
     navItems.push({ label: "Users", href: "/users", icon: Users });
     navItems.push({ label: "Audit Log", href: "/audit-log", icon: Shield });
     navItems.push({ label: "Settings", href: "/settings", icon: Settings });
