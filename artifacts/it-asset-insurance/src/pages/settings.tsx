@@ -5,7 +5,9 @@ import {
   Plus, Trash2, Settings, Loader2, Tag, Cpu, Users2, Activity,
   Mail, Eye, EyeOff, FlaskConical, CheckCircle, XCircle,
   ToggleLeft, ToggleRight, Pencil, Check, X, ChevronRight,
+  Database, FileText, UploadCloud, Edit2, Shield,
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
 interface Option { id: number; value: string; }
@@ -447,7 +449,334 @@ function SmtpConfigPanel() {
   );
 }
 
-type Tab = "options" | "email";
+/* ─── Policy Management Panel ───────────────────────────────────────── */
+
+interface Policy {
+  id: number;
+  policyNumber: string;
+  startDate?: string;
+  endDate?: string;
+  pdfFilePath?: string;
+  pdfFileName?: string;
+  isActive: boolean;
+  createdAt: string;
+  assetCount: number;
+}
+
+interface PolicyFormData { policyNumber: string; startDate: string; endDate: string; }
+
+function PolicyFormModal({ initial, onClose, onSave, isSaving }: {
+  initial?: Policy; onClose: () => void;
+  onSave: (data: PolicyFormData, file: File | null) => void; isSaving: boolean;
+}) {
+  const [form, setForm] = useState<PolicyFormData>({
+    policyNumber: initial?.policyNumber ?? "",
+    startDate: initial?.startDate ?? "",
+    endDate: initial?.endDate ?? "",
+  });
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const pdfRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 className="text-lg font-display font-bold text-slate-900">{initial ? "Edit Policy" : "Create Policy"}</h2>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Policy Number *</label>
+            <input className="input-base" value={form.policyNumber} onChange={(e) => setForm((p) => ({ ...p, policyNumber: e.target.value }))} placeholder="e.g. POL-2024-001" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Start Date</label>
+              <input type="date" className="input-base" value={form.startDate} onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">End Date</label>
+              <input type="date" className="input-base" value={form.endDate} onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))} />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Policy PDF</label>
+            {initial?.pdfFileName && !pdfFile && <p className="text-xs text-slate-500 mb-2">Current: {initial.pdfFileName}</p>}
+            <input ref={pdfRef} type="file" accept=".pdf,application/pdf" className="hidden" onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)} />
+            {pdfFile ? (
+              <div className="flex items-center gap-2 p-3 border border-slate-200 rounded-xl bg-slate-50">
+                <FileText className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                <span className="text-sm text-slate-700 truncate flex-1">{pdfFile.name}</span>
+                <button type="button" onClick={() => setPdfFile(null)} className="text-slate-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => pdfRef.current?.click()}
+                className="w-full flex items-center gap-2 justify-center py-3 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-indigo-400 hover:text-indigo-600 text-sm font-medium transition-all">
+                <UploadCloud className="w-4 h-4" />{initial?.pdfFileName ? "Replace PDF" : "Upload PDF"}
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 pb-6">
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={() => { if (form.policyNumber) onSave(form, pdfFile); }} disabled={isSaving || !form.policyNumber} className="btn-primary disabled:opacity-60">
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {initial ? "Save Changes" : "Create Policy"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PolicyExcelModal({ policy, onClose }: { policy: Policy; onClose: () => void }) {
+  const { toast } = useToast();
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const qc = useQueryClient();
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("excel", file);
+      const res = await fetch(`/api/policies/${policy.id}/upload-excel`, { method: "POST", body: fd, credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      toast({ title: "Assets imported", description: `${data.assetCount} assets loaded from Excel` });
+      qc.invalidateQueries({ queryKey: ["settings-policies"] });
+      onClose();
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Upload failed", description: err.message });
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <div>
+            <h2 className="text-lg font-display font-bold text-slate-900">Upload Asset Excel</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Policy: {policy.policyNumber}</p>
+          </div>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-6">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm text-amber-800">
+            <strong>Note:</strong> Uploading replaces all existing assets for this policy.
+          </div>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          {file ? (
+            <div className="flex items-center gap-3 p-4 border border-slate-200 rounded-xl bg-slate-50 mb-4">
+              <Database className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-800 truncate">{file.name}</p>
+                <p className="text-xs text-slate-400">{(file.size / 1024).toFixed(1)} KB</p>
+              </div>
+              <button onClick={() => setFile(null)} className="text-slate-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+            </div>
+          ) : (
+            <button onClick={() => fileRef.current?.click()}
+              className="w-full flex flex-col items-center gap-2 py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-indigo-400 hover:text-indigo-600 text-sm font-medium transition-all mb-4">
+              <UploadCloud className="w-8 h-8" />
+              <span>Click to select Excel file (.xlsx, .xls)</span>
+            </button>
+          )}
+        </div>
+        <div className="flex justify-end gap-3 px-6 pb-6">
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={handleUpload} disabled={!file || loading} className="btn-primary disabled:opacity-60">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+            Import Assets
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PolicyPdfModal({ policy, onClose }: { policy: Policy; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b border-slate-100">
+          <div>
+            <h3 className="font-display font-bold text-slate-900">Policy PDF</h3>
+            <p className="text-xs text-slate-400">{policy.policyNumber} — {policy.pdfFileName}</p>
+          </div>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <iframe src={`/api/policies/${policy.pdfFilePath}/pdf`} className="w-full h-full rounded-b-2xl" title="Policy PDF" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PolicyManagementPanel() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data: policies = [], isLoading } = useQuery<Policy[]>({
+    queryKey: ["settings-policies"],
+    queryFn: () => fetch("/api/policies", { credentials: "include" }).then((r) => r.json()),
+  });
+  const [showCreate, setShowCreate] = useState(false);
+  const [editPolicy, setEditPolicy] = useState<Policy | null>(null);
+  const [excelPolicy, setExcelPolicy] = useState<Policy | null>(null);
+  const [pdfPolicy, setPdfPolicy] = useState<Policy | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async (data: PolicyFormData, file: File | null, existingId?: number) => {
+    setIsSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append("policyNumber", data.policyNumber);
+      if (data.startDate) fd.append("startDate", data.startDate);
+      if (data.endDate) fd.append("endDate", data.endDate);
+      if (file) fd.append("pdf", file);
+      const url = existingId ? `/api/policies/${existingId}` : "/api/policies";
+      const res = await fetch(url, { method: existingId ? "PUT" : "POST", body: fd, credentials: "include" });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Failed to save");
+      toast({ title: existingId ? "Policy updated" : "Policy created" });
+      qc.invalidateQueries({ queryKey: ["settings-policies"] });
+      setShowCreate(false); setEditPolicy(null);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error", description: err.message });
+    } finally { setIsSaving(false); }
+  };
+
+  const handleToggle = async (policy: Policy) => {
+    const endpoint = policy.isActive ? "deactivate" : "activate";
+    try {
+      const res = await fetch(`/api/policies/${policy.id}/${endpoint}`, { method: "POST", credentials: "include" });
+      if (!res.ok) throw new Error();
+      toast({ title: policy.isActive ? `Policy deactivated` : `Policy "${policy.policyNumber}" is now active` });
+      qc.invalidateQueries({ queryKey: ["settings-policies"] });
+    } catch {
+      toast({ variant: "destructive", title: `Failed to ${endpoint} policy` });
+    }
+  };
+
+  const handleDelete = async (policy: Policy) => {
+    if (!confirm(`Delete policy "${policy.policyNumber}"? This will also remove all its assets.`)) return;
+    try {
+      const res = await fetch(`/api/policies/${policy.id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error();
+      toast({ title: "Policy deleted" });
+      qc.invalidateQueries({ queryKey: ["settings-policies"] });
+    } catch {
+      toast({ variant: "destructive", title: "Failed to delete policy" });
+    }
+  };
+
+  return (
+    <div>
+      {/* Header bar */}
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <p className="text-sm text-slate-500">Manage insurance policies, upload PDF documents, and import asset data from Excel.</p>
+          <p className="text-xs text-amber-600 mt-1 font-medium">Only one policy can be active at a time.</p>
+        </div>
+        <button onClick={() => setShowCreate(true)} className="btn-primary">
+          <Plus className="w-4 h-4" /> New Policy
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
+      ) : policies.length === 0 ? (
+        <div className="card p-12 text-center">
+          <Shield className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+          <p className="text-slate-500 font-medium">No policies yet</p>
+          <p className="text-slate-400 text-sm mt-1">Create your first policy to get started.</p>
+          <button onClick={() => setShowCreate(true)} className="btn-primary mt-4"><Plus className="w-4 h-4" /> Create Policy</button>
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50">
+                  <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Policy Number</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Enable / Disable</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Period</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Assets</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">PDF</th>
+                  <th className="text-right px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {policies.map((policy) => (
+                  <tr key={policy.id} className={cn("hover:bg-slate-50/50 transition-colors", policy.isActive && "bg-emerald-50/40")}>
+                    <td className="px-5 py-4">
+                      <span className="font-bold text-slate-900">{policy.policyNumber}</span>
+                      {policy.isActive && (
+                        <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">
+                          <CheckCircle className="w-3 h-3" /> Active
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
+                      <button onClick={() => handleToggle(policy)} className="flex items-center gap-2 transition-colors group">
+                        {policy.isActive
+                          ? <ToggleRight className="w-8 h-8 text-emerald-500 group-hover:text-emerald-600" />
+                          : <ToggleLeft className="w-8 h-8 text-slate-300 group-hover:text-slate-400" />}
+                        <span className={cn("text-xs font-semibold", policy.isActive ? "text-emerald-600" : "text-slate-400")}>
+                          {policy.isActive ? "Enabled" : "Disabled"}
+                        </span>
+                      </button>
+                    </td>
+                    <td className="px-5 py-4 text-slate-600 text-xs">
+                      {policy.startDate || policy.endDate
+                        ? <span>{policy.startDate || "—"} → {policy.endDate || "—"}</span>
+                        : <span className="text-slate-400">—</span>}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold">
+                        <Database className="w-3 h-3" />{policy.assetCount.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      {policy.pdfFilePath ? (
+                        <button onClick={() => setPdfPolicy(policy)} className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-semibold">
+                          <Eye className="w-3.5 h-3.5" /> Preview
+                        </button>
+                      ) : <span className="text-slate-400 text-xs">No PDF</span>}
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => setExcelPolicy(policy)} title="Upload Asset Excel" className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                          <Database className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setEditPolicy(policy)} title="Edit" className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDelete(policy)} title="Delete" disabled={policy.isActive} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {showCreate && <PolicyFormModal onClose={() => setShowCreate(false)} onSave={(d, f) => handleSave(d, f)} isSaving={isSaving} />}
+      {editPolicy && <PolicyFormModal initial={editPolicy} onClose={() => setEditPolicy(null)} onSave={(d, f) => handleSave(d, f, editPolicy.id)} isSaving={isSaving} />}
+      {excelPolicy && <PolicyExcelModal policy={excelPolicy} onClose={() => setExcelPolicy(null)} />}
+      {pdfPolicy && pdfPolicy.pdfFilePath && <PolicyPdfModal policy={pdfPolicy} onClose={() => setPdfPolicy(null)} />}
+    </div>
+  );
+}
+
+type Tab = "options" | "email" | "policy";
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -497,6 +826,7 @@ export default function SettingsPage() {
   const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: "options", label: "Dropdown Options", icon: <Tag className="w-4 h-4" /> },
     { key: "email", label: "Email (SMTP)", icon: <Mail className="w-4 h-4" /> },
+    { key: "policy", label: "Policy Management", icon: <Shield className="w-4 h-4" /> },
   ];
 
   return (
@@ -508,7 +838,7 @@ export default function SettingsPage() {
         </div>
         <div>
           <h1 className="text-2xl font-display font-bold text-slate-900 leading-none">Settings</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Manage dropdown options and email notifications</p>
+          <p className="text-xs text-slate-400 mt-0.5">Manage dropdown options, email notifications, and insurance policies</p>
         </div>
       </div>
 
@@ -542,6 +872,7 @@ export default function SettingsPage() {
         />
       )}
       {activeTab === "email" && <SmtpConfigPanel />}
+      {activeTab === "policy" && <PolicyManagementPanel />}
     </AppLayout>
   );
 }

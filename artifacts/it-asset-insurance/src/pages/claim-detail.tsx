@@ -101,9 +101,14 @@ export default function ClaimDetail() {
             <DetailCard title="Basic Information">
               <DetailRow label="Employee Name" value={claim.employeeName} />
               <DetailRow label="Employee ID" value={claim.employeeId} />
-              <DetailRow label="Asset Type" value={claim.assetType} />
+              {claim.policyNumber && <DetailRow label="Policy Number" value={claim.policyNumber} highlight />}
               <DetailRow label="Asset Code" value={claim.assetCode} />
+              <DetailRow label="Asset Type" value={claim.assetType} />
               <DetailRow label="Serial No" value={claim.serialNo} />
+              {claim.model && <DetailRow label="Model" value={claim.model} />}
+              {claim.processor && <DetailRow label="Processor" value={claim.processor} />}
+              {claim.ram && <DetailRow label="RAM" value={claim.ram} />}
+              {claim.hdd && <DetailRow label="HDD / Storage" value={claim.hdd} />}
             </DetailCard>
 
             <DetailCard title="Incident Details">

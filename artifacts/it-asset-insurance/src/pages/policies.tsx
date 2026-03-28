@@ -3,7 +3,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Loader2, Trash2, CheckCircle, FileText, UploadCloud,
-  Eye, XCircle, Edit2, X, ChevronLeft, ChevronRight, Database
+  Eye, XCircle, Edit2, X, ChevronLeft, ChevronRight, Database,
+  ToggleLeft, ToggleRight
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -366,23 +367,20 @@ export default function PoliciesPage() {
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center justify-end gap-1">
-                        {policy.isActive ? (
-                          <button
-                            onClick={() => handleDeactivate(policy)}
-                            title="Deactivate"
-                            className="px-2.5 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
-                          >
-                            Deactivate
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleActivate(policy)}
-                            title="Set as Active"
-                            className="px-2.5 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
-                          >
-                            Activate
-                          </button>
-                        )}
+                        <button
+                          onClick={() => policy.isActive ? handleDeactivate(policy) : handleActivate(policy)}
+                          title={policy.isActive ? "Deactivate policy" : "Activate policy"}
+                          className="flex items-center gap-1.5 transition-colors"
+                        >
+                          {policy.isActive ? (
+                            <ToggleRight className="w-7 h-7 text-emerald-500" />
+                          ) : (
+                            <ToggleLeft className="w-7 h-7 text-slate-300" />
+                          )}
+                          <span className={cn("text-xs font-semibold", policy.isActive ? "text-emerald-600" : "text-slate-400")}>
+                            {policy.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </button>
                         <button
                           onClick={() => setExcelPolicy(policy)}
                           title="Upload Excel"
