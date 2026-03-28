@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Loader2, Trash2, CheckCircle, FileText, UploadCloud,
   Eye, XCircle, Edit2, X, ChevronLeft, ChevronRight, Database,
-  ToggleLeft, ToggleRight
+  ToggleLeft, ToggleRight, Download
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -188,8 +188,19 @@ function ExcelUploadModal({ policy, onClose }: { policy: Policy; onClose: () => 
           </button>
         </div>
         <div className="p-6">
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm text-amber-800">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-sm text-amber-800">
             <strong>Note:</strong> Uploading a new Excel file will replace all existing assets for this policy.
+          </div>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-slate-500">Upload an Excel file with asset data.</p>
+            <a
+              href="/api/policies/sample-excel"
+              download="sample-asset-upload.xlsx"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download Sample Format
+            </a>
           </div>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           {file ? (

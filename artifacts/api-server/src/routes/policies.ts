@@ -75,15 +75,15 @@ const REQUIRED_EXCEL_COLUMNS = [
   "Asset No",
   "Capitalization Date",
   "Asset Class",
-  "Asset Class (Short Name)",
+  "Asset Class(Short Name)",
   "Asset Description",
   "Asset Type",
   "Asset Sub Type",
   "SBU",
   "Plant",
   "Quantity",
-  "Cost (Local)",
-  "NBV (Local)",
+  "Cost(Local)",
+  "NBV(Local)",
   "Condition",
   "Asset Criticality",
   "Inventory On",
@@ -103,15 +103,15 @@ function mapRowToAsset(row: Record<string, any>, policyId: number) {
     assetNo: String(row["Asset No"] ?? "").trim() || null,
     capitalizationDate: String(row["Capitalization Date"] ?? "").trim() || null,
     assetClass: String(row["Asset Class"] ?? "").trim() || null,
-    assetClassShortName: String(row["Asset Class (Short Name)"] ?? "").trim() || null,
+    assetClassShortName: String(row["Asset Class(Short Name)"] ?? "").trim() || null,
     assetDescription: String(row["Asset Description"] ?? "").trim() || null,
     assetType: String(row["Asset Type"] ?? "").trim() || null,
     assetSubType: String(row["Asset Sub Type"] ?? "").trim() || null,
     sbu: String(row["SBU"] ?? "").trim() || null,
     plant: String(row["Plant"] ?? "").trim() || null,
     quantity: String(row["Quantity"] ?? "").trim() || null,
-    costLocal: String(row["Cost (Local)"] ?? "").trim() || null,
-    nbvLocal: String(row["NBV (Local)"] ?? "").trim() || null,
+    costLocal: String(row["Cost(Local)"] ?? "").trim() || null,
+    nbvLocal: String(row["NBV(Local)"] ?? "").trim() || null,
     condition: String(row["Condition"] ?? "").trim() || null,
     assetCriticality: String(row["Asset Criticality"] ?? "").trim() || null,
     inventoryOn: String(row["Inventory On"] ?? "").trim() || null,
@@ -218,6 +218,69 @@ router.post("/:id/deactivate", requireAuth, requireAdmin, async (req: Request, r
   const [updated] = await db.update(policiesTable).set({ isActive: false }).where(eq(policiesTable.id, id)).returning();
   await logAudit({ req, action: "POLICY_DEACTIVATED", category: "POLICIES", resourceType: "policy", resourceId: id, description: `Deactivated policy ${target.policyNumber}` });
   res.json(updated);
+});
+
+router.get("/sample-excel", requireAuth, (_req: Request, res: Response) => {
+  const headers = [
+    "Sr No.",
+    "Inventory No.",
+    "Asset No",
+    "Capitalization Date",
+    "Asset Class",
+    "Asset Class(Short Name)",
+    "Asset Description",
+    "Asset Type",
+    "Asset Sub Type",
+    "SBU",
+    "Plant",
+    "Quantity",
+    "Cost(Local)",
+    "NBV(Local)",
+    "Condition",
+    "Asset Criticality",
+    "Inventory On",
+    "LCD Serial No",
+    "IT Serial No",
+    "Processor",
+    "HDD",
+    "RAM",
+    "Model",
+  ];
+
+  const sampleRow = [
+    1,
+    "1000007660",
+    "GJ/HO/Laptop/069",
+    "2018-07-14",
+    "Computer & Peripherals",
+    "Computer & Peripherals",
+    "Sample Asset Description",
+    "Laptop",
+    "Dell",
+    "Gujarat",
+    "Halol",
+    1,
+    42585,
+    1158.42,
+    "Working",
+    "Normal",
+    "2022-07-14",
+    "",
+    "CYT5QJ2",
+    "Intel Core i3",
+    "512 GB SSD",
+    "8 GB",
+    "Dell Latitude 3480",
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Assets");
+  const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+
+  res.setHeader("Content-Disposition", "attachment; filename=sample-asset-upload.xlsx");
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.send(buf);
 });
 
 router.post("/:id/upload-excel", requireAuth, requireAdmin, uploadExcel.single("excel"), async (req: Request, res: Response) => {
