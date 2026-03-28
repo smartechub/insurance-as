@@ -34,10 +34,11 @@ function formatDate(d: string | null | undefined): string {
 
 function parseDate(d: string): string | null {
   if (!d) return null;
-  const ddmmyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(d.trim());
+  const s = d.trim();
+  const ddmmyyyy = /^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/.exec(s);
   if (ddmmyyyy) return `${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`;
-  const yyyymmdd = /^\d{4}-\d{2}-\d{2}$/.test(d.trim());
-  if (yyyymmdd) return d.trim();
+  const yyyymmdd = /^\d{4}-\d{2}-\d{2}$/.test(s);
+  if (yyyymmdd) return s;
   return null;
 }
 
