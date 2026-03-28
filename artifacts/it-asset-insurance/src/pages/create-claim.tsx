@@ -317,7 +317,7 @@ export default function CreateClaim() {
             <InputField label="Employee Name *" name="employeeName" value={formData.employeeName} onChange={handleChange} required />
 
             {/* Asset Code with inline auto-fetch */}
-            <div className="md:col-span-2">
+            <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Asset Code / Asset No *</label>
               <div className="relative">
                 <input
