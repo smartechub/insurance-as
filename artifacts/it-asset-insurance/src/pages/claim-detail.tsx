@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useGetClaimById, useUpdateClaim, useGetDocumentsByClaim, useDeleteDocument } from "@workspace/api-client-react";
 import { useRoute, Link } from "wouter";
@@ -22,6 +22,15 @@ function useSettingOptions(category: string) {
       .catch(() => {});
   }, [category]);
   return options;
+}
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
 }
 
 interface AuditLog {
@@ -244,9 +253,53 @@ function EditClaimModal({ claim, onClose }: { claim: any; onClose: () => void })
     claimStatus: claim.claimStatus ?? "Pending",
   });
 
+  const [empLookupStatus, setEmpLookupStatus] = useState<"idle" | "loading" | "found" | "not_found">("idle");
+  const [assetLookupStatus, setAssetLookupStatus] = useState<"idle" | "loading" | "found" | "not_found">("idle");
+  const debouncedEmployeeId = useDebounce(form.employeeId, 600);
+  const debouncedAssetCode = useDebounce(form.assetCode, 600);
+
+  const fetchEmployee = useCallback(async (empId: string) => {
+    if (!empId.trim()) { setEmpLookupStatus("idle"); return; }
+    setEmpLookupStatus("loading");
+    try {
+      const res = await fetch(`/api/employees/${encodeURIComponent(empId.trim())}`, { credentials: "include" });
+      if (!res.ok) { setEmpLookupStatus("not_found"); return; }
+      const data = await res.json();
+      setEmpLookupStatus("found");
+      setForm((prev) => ({ ...prev, employeeName: data.employeeName || prev.employeeName }));
+    } catch { setEmpLookupStatus("not_found"); }
+  }, []);
+
+  const fetchAsset = useCallback(async (code: string) => {
+    if (!code.trim()) { setAssetLookupStatus("idle"); return; }
+    setAssetLookupStatus("loading");
+    try {
+      const res = await fetch(`/api/assets/lookup?assetNo=${encodeURIComponent(code.trim())}`, { credentials: "include" });
+      if (!res.ok) { setAssetLookupStatus("not_found"); return; }
+      const data = await res.json();
+      setAssetLookupStatus("found");
+      setForm((prev) => ({
+        ...prev,
+        assetType: data.assetType || prev.assetType,
+        serialNo: data.itSerialNo || data.lcdSerialNo || prev.serialNo,
+      }));
+    } catch { setAssetLookupStatus("not_found"); }
+  }, []);
+
+  useEffect(() => { fetchEmployee(debouncedEmployeeId); }, [debouncedEmployeeId, fetchEmployee]);
+  useEffect(() => { fetchAsset(debouncedAssetCode); }, [debouncedAssetCode, fetchAsset]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    if (name === "employeeId") {
+      setEmpLookupStatus("idle");
+      setForm((prev) => ({ ...prev, employeeId: value, employeeName: "" }));
+    } else if (name === "assetCode") {
+      setAssetLookupStatus("idle");
+      setForm((prev) => ({ ...prev, assetCode: value }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -297,9 +350,42 @@ function EditClaimModal({ claim, onClose }: { claim: any; onClose: () => void })
           <section>
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Basic Information</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <ModalField label="Employee ID *" name="employeeId" value={form.employeeId} onChange={handleChange} required />
-              <ModalField label="Employee Name *" name="employeeName" value={form.employeeName} onChange={handleChange} required />
-              <ModalField label="Asset Code *" name="assetCode" value={form.assetCode} onChange={handleChange} required />
+              {/* Employee ID with auto-fetch */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Employee ID *</label>
+                <div className="relative">
+                  <input name="employeeId" value={form.employeeId} onChange={handleChange} required className="input-base text-sm pr-8" />
+                  {empLookupStatus === "loading" && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-slate-400" />}
+                  {empLookupStatus === "found" && <CheckCircle2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />}
+                  {empLookupStatus === "not_found" && <AlertCircle className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-red-400" />}
+                </div>
+                {empLookupStatus === "not_found" && <p className="text-xs text-red-400 mt-1">Employee not found</p>}
+              </div>
+              {/* Employee Name — auto-filled */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Employee Name *</label>
+                <input
+                  name="employeeName"
+                  value={form.employeeName}
+                  onChange={handleChange}
+                  required
+                  readOnly={empLookupStatus === "found"}
+                  className={`input-base text-sm ${empLookupStatus === "found" ? "bg-slate-50 text-slate-500" : ""}`}
+                />
+                {empLookupStatus === "found" && <p className="text-xs text-green-600 mt-1">Auto-filled from Employee ID</p>}
+              </div>
+              {/* Asset Code with auto-fetch */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Asset Code *</label>
+                <div className="relative">
+                  <input name="assetCode" value={form.assetCode} onChange={handleChange} required className="input-base text-sm pr-8" />
+                  {assetLookupStatus === "loading" && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-slate-400" />}
+                  {assetLookupStatus === "found" && <CheckCircle2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />}
+                  {assetLookupStatus === "not_found" && <AlertCircle className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-red-400" />}
+                </div>
+                {assetLookupStatus === "found" && <p className="text-xs text-green-600 mt-1">Asset type & serial auto-filled</p>}
+                {assetLookupStatus === "not_found" && <p className="text-xs text-amber-500 mt-1">Asset not found — fill manually</p>}
+              </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Asset Type</label>
                 <select name="assetType" value={form.assetType} onChange={handleChange} className="input-base text-sm appearance-none">
