@@ -1,167 +1,241 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Settings, Loader2, Tag, Cpu, Users2, Activity, Mail, Eye, EyeOff, FlaskConical, CheckCircle, XCircle, ToggleLeft, ToggleRight, Pencil, Check, X } from "lucide-react";
+import {
+  Plus, Trash2, Settings, Loader2, Tag, Cpu, Users2, Activity,
+  Mail, Eye, EyeOff, FlaskConical, CheckCircle, XCircle,
+  ToggleLeft, ToggleRight, Pencil, Check, X, ChevronRight,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Option { id: number; value: string; }
 
 interface CategoryConfig {
   key: string; label: string; description: string;
-  icon: React.ReactNode; color: string;
+  icon: React.ReactNode; accent: string; dot: string;
 }
 
 const CATEGORIES: CategoryConfig[] = [
-  { key: "assetTypes", label: "Asset Types", description: "Types of IT assets covered (used in claim forms)", icon: <Cpu className="w-5 h-5" />, color: "indigo" },
-  { key: "effectedParts", label: "Affected Parts", description: "Parts that can be damaged or affected in a claim", icon: <Tag className="w-5 h-5" />, color: "orange" },
-  { key: "departments", label: "Departments", description: "Company departments for filtering and reporting", icon: <Users2 className="w-5 h-5" />, color: "green" },
-  { key: "claimStatuses", label: "Claim Statuses", description: "Status values used throughout the claims workflow", icon: <Activity className="w-5 h-5" />, color: "violet" },
+  {
+    key: "assetTypes", label: "Asset Types",
+    description: "Types of IT assets used in claim forms",
+    icon: <Cpu className="w-4 h-4" />, accent: "indigo", dot: "bg-indigo-500",
+  },
+  {
+    key: "effectedParts", label: "Affected Parts",
+    description: "Parts damaged or affected in a claim",
+    icon: <Tag className="w-4 h-4" />, accent: "orange", dot: "bg-orange-500",
+  },
+  {
+    key: "departments", label: "Departments",
+    description: "Company departments for filtering",
+    icon: <Users2 className="w-4 h-4" />, accent: "emerald", dot: "bg-emerald-500",
+  },
+  {
+    key: "claimStatuses", label: "Claim Statuses",
+    description: "Status values for the claims workflow",
+    icon: <Activity className="w-4 h-4" />, accent: "violet", dot: "bg-violet-500",
+  },
 ];
 
-const COLOR_MAP: Record<string, { bg: string; iconBg: string; iconText: string; badge: string; badgeText: string; addBtn: string; border: string }> = {
-  indigo: { bg: "bg-indigo-50/60", iconBg: "bg-indigo-100", iconText: "text-indigo-600", badge: "bg-indigo-100", badgeText: "text-indigo-700", addBtn: "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500", border: "border-indigo-200" },
-  orange: { bg: "bg-orange-50/60", iconBg: "bg-orange-100", iconText: "text-orange-600", badge: "bg-orange-100", badgeText: "text-orange-700", addBtn: "bg-orange-500 hover:bg-orange-600 focus:ring-orange-400", border: "border-orange-200" },
-  green: { bg: "bg-emerald-50/60", iconBg: "bg-emerald-100", iconText: "text-emerald-600", badge: "bg-emerald-100", badgeText: "text-emerald-700", addBtn: "bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500", border: "border-emerald-200" },
-  violet: { bg: "bg-violet-50/60", iconBg: "bg-violet-100", iconText: "text-violet-600", badge: "bg-violet-100", badgeText: "text-violet-700", addBtn: "bg-violet-600 hover:bg-violet-700 focus:ring-violet-500", border: "border-violet-200" },
+const ACCENT: Record<string, { nav: string; iconBg: string; iconText: string; add: string; chip: string; chipText: string; ring: string }> = {
+  indigo:  { nav: "bg-indigo-50 text-indigo-700 border-indigo-200",  iconBg: "bg-indigo-100", iconText: "text-indigo-600", add: "bg-indigo-600 hover:bg-indigo-700",  chip: "bg-indigo-50 border-indigo-200",  chipText: "text-indigo-800", ring: "focus:ring-indigo-400" },
+  orange:  { nav: "bg-orange-50 text-orange-700 border-orange-200",  iconBg: "bg-orange-100", iconText: "text-orange-600", add: "bg-orange-500 hover:bg-orange-600",  chip: "bg-orange-50 border-orange-200",  chipText: "text-orange-800", ring: "focus:ring-orange-400" },
+  emerald: { nav: "bg-emerald-50 text-emerald-700 border-emerald-200", iconBg: "bg-emerald-100", iconText: "text-emerald-600", add: "bg-emerald-600 hover:bg-emerald-700", chip: "bg-emerald-50 border-emerald-200", chipText: "text-emerald-800", ring: "focus:ring-emerald-400" },
+  violet:  { nav: "bg-violet-50 text-violet-700 border-violet-200",  iconBg: "bg-violet-100", iconText: "text-violet-600", add: "bg-violet-600 hover:bg-violet-700",  chip: "bg-violet-50 border-violet-200",  chipText: "text-violet-800", ring: "focus:ring-violet-400" },
 };
 
-function CategoryCard({ category, options, onAdd, onEdit, onDelete }: {
-  category: CategoryConfig; options: Option[];
-  onAdd: (category: string, value: string) => Promise<void>;
-  onEdit: (category: string, id: number, value: string) => Promise<void>;
-  onDelete: (category: string, id: number, value: string) => Promise<void>;
+function DropdownOptionsPanel({
+  optionsMap, loading, onAdd, onEdit, onDelete,
+}: {
+  optionsMap: Record<string, Option[]>;
+  loading: boolean;
+  onAdd: (cat: string, val: string) => Promise<void>;
+  onEdit: (cat: string, id: number, val: string) => Promise<void>;
+  onDelete: (cat: string, id: number, val: string) => Promise<void>;
 }) {
+  const [activeCat, setActiveCat] = useState(CATEGORIES[0].key);
+  const category = CATEGORIES.find((c) => c.key === activeCat)!;
+  const options = optionsMap[activeCat] ?? [];
+  const ac = ACCENT[category.accent];
+
   const [newValue, setNewValue] = useState("");
   const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
   const [savingId, setSavingId] = useState<number | null>(null);
-  const colors = COLOR_MAP[category.color];
+  const addInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setNewValue("");
+    setEditingId(null);
+    setEditValue("");
+  }, [activeCat]);
 
   const handleAdd = async () => {
     if (!newValue.trim()) return;
     setAdding(true);
-    try { await onAdd(category.key, newValue.trim()); setNewValue(""); }
+    try { await onAdd(activeCat, newValue.trim()); setNewValue(""); addInputRef.current?.focus(); }
     finally { setAdding(false); }
   };
 
-  const handleDelete = async (id: number, value: string) => {
+  const handleDelete = async (id: number, val: string) => {
     setDeletingId(id);
-    try { await onDelete(category.key, id, value); }
+    try { await onDelete(activeCat, id, val); }
     finally { setDeletingId(null); }
   };
 
-  const startEdit = (opt: Option) => {
-    setEditingId(opt.id);
-    setEditValue(opt.value);
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditValue("");
-  };
+  const startEdit = (opt: Option) => { setEditingId(opt.id); setEditValue(opt.value); };
+  const cancelEdit = () => { setEditingId(null); setEditValue(""); };
 
   const handleSaveEdit = async (id: number) => {
     if (!editValue.trim()) return;
     setSavingId(id);
-    try {
-      await onEdit(category.key, id, editValue.trim());
-      setEditingId(null);
-      setEditValue("");
-    } finally {
-      setSavingId(null);
-    }
+    try { await onEdit(activeCat, id, editValue.trim()); setEditingId(null); setEditValue(""); }
+    finally { setSavingId(null); }
   };
 
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <Loader2 className="w-7 h-7 animate-spin text-indigo-400" />
+    </div>
+  );
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className={`px-6 py-5 ${colors.bg} border-b ${colors.border}`}>
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl ${colors.iconBg} ${colors.iconText} flex items-center justify-center shrink-0`}>{category.icon}</div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-slate-900">{category.label}</h3>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colors.badge} ${colors.badgeText}`}>{options.length}</span>
+    <div className="flex gap-0 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" style={{ minHeight: 480 }}>
+      {/* Left nav */}
+      <nav className="w-56 shrink-0 border-r border-slate-200 bg-slate-50 flex flex-col py-2">
+        {CATEGORIES.map((cat) => {
+          const count = (optionsMap[cat.key] ?? []).length;
+          const isActive = cat.key === activeCat;
+          const a = ACCENT[cat.accent];
+          return (
+            <button
+              key={cat.key}
+              onClick={() => setActiveCat(cat.key)}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 text-left transition-all border-r-2",
+                isActive
+                  ? `border-r-current ${a.nav} border border-r-2`
+                  : "border-r-transparent text-slate-600 hover:bg-slate-100 border-transparent"
+              )}
+            >
+              <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0", isActive ? a.iconBg : "bg-slate-200", isActive ? a.iconText : "text-slate-500")}>
+                {cat.icon}
+              </div>
+              <span className="text-sm font-semibold flex-1 leading-tight">{cat.label}</span>
+              <span className={cn("text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center", isActive ? a.iconBg + " " + a.iconText : "bg-slate-200 text-slate-500")}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Right panel */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Panel header */}
+        <div className="px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0", ac.iconBg, ac.iconText)}>
+              {category.icon}
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">{category.description}</p>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">{category.label}</h3>
+              <p className="text-xs text-slate-400 mt-0.5">{category.description}</p>
+            </div>
           </div>
         </div>
-      </div>
-      <div className="px-6 py-4">
-        {options.length === 0 ? (
-          <div className="py-6 text-center text-sm text-slate-400">No options yet. Add one below.</div>
-        ) : (
-          <div className="space-y-1.5 mb-4">
-            {options.map((opt) => (
-              <div key={opt.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-100 group transition-colors">
-                {editingId === opt.id ? (
-                  <>
-                    <div className={`w-1.5 h-1.5 rounded-full ${colors.iconBg} shrink-0`} />
+
+        {/* Items */}
+        <div className="flex-1 px-6 py-5 overflow-y-auto">
+          {options.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-3", ac.iconBg, ac.iconText)}>
+                {category.icon}
+              </div>
+              <p className="text-sm font-semibold text-slate-500">No {category.label.toLowerCase()} yet</p>
+              <p className="text-xs text-slate-400 mt-1">Add your first option below</p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {options.map((opt) =>
+                editingId === opt.id ? (
+                  <div key={opt.id} className={cn("flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-xl border text-sm font-semibold", ac.chip, ac.chipText)}>
                     <input
-                      type="text"
-                      value={editValue}
                       autoFocus
+                      value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveEdit(opt.id);
-                        if (e.key === "Escape") cancelEdit();
-                      }}
-                      className="flex-1 text-sm font-medium text-slate-800 bg-white border border-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(opt.id); if (e.key === "Escape") cancelEdit(); }}
+                      className={cn("bg-transparent border-b border-current outline-none w-28 text-sm font-semibold", ac.chipText)}
                     />
                     <button
                       onClick={() => handleSaveEdit(opt.id)}
                       disabled={savingId === opt.id || !editValue.trim()}
-                      className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-all disabled:opacity-50"
-                      title="Save"
+                      className="p-0.5 rounded text-emerald-600 hover:bg-emerald-100 disabled:opacity-40 transition-colors"
                     >
                       {savingId === opt.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                     </button>
-                    <button
-                      onClick={cancelEdit}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all"
-                      title="Cancel"
-                    >
+                    <button onClick={cancelEdit} className="p-0.5 rounded text-slate-400 hover:bg-slate-200 transition-colors">
                       <X className="w-3.5 h-3.5" />
                     </button>
-                  </>
+                  </div>
                 ) : (
-                  <>
-                    <div className={`w-1.5 h-1.5 rounded-full ${colors.iconBg} shrink-0`} />
-                    <span className="text-sm font-medium text-slate-800 flex-1">{opt.value}</span>
+                  <div
+                    key={opt.id}
+                    className={cn("group flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-xl border text-sm font-semibold transition-all", ac.chip, ac.chipText)}
+                  >
+                    <span>{opt.value}</span>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
                       <button
                         onClick={() => startEdit(opt)}
                         disabled={deletingId === opt.id}
-                        className="p-1.5 rounded-lg text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 transition-all disabled:opacity-50"
+                        className="p-0.5 rounded text-slate-400 hover:text-indigo-600 hover:bg-white/80 transition-colors disabled:opacity-40"
                         title={`Edit "${opt.value}"`}
                       >
-                        <Pencil className="w-3.5 h-3.5" />
+                        <Pencil className="w-3 h-3" />
                       </button>
                       <button
                         onClick={() => handleDelete(opt.id, opt.value)}
                         disabled={deletingId === opt.id}
-                        className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-50"
+                        className="p-0.5 rounded text-slate-400 hover:text-red-600 hover:bg-white/80 transition-colors disabled:opacity-40"
                         title={`Remove "${opt.value}"`}
                       >
-                        {deletingId === opt.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        {deletingId === opt.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
                       </button>
                     </div>
-                  </>
-                )}
-              </div>
-            ))}
+                  </div>
+                )
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Add input pinned to bottom */}
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+          <div className="flex gap-2">
+            <input
+              ref={addInputRef}
+              type="text"
+              value={newValue}
+              onChange={(e) => setNewValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              placeholder={`Add new ${category.label.toLowerCase().replace(/s$/, "")}…`}
+              className="flex-1 input-base text-sm"
+            />
+            <button
+              onClick={handleAdd}
+              disabled={adding || !newValue.trim()}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+                ac.add
+              )}
+            >
+              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              Add
+            </button>
           </div>
-        )}
-        <div className="flex gap-2 mt-3">
-          <input type="text" value={newValue} onChange={(e) => setNewValue(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            placeholder={`Add new ${category.label.toLowerCase().replace(/s$/, "")}…`}
-            className="flex-1 input-base text-sm" />
-          <button onClick={handleAdd} disabled={adding || !newValue.trim()}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed ${colors.addBtn}`}>
-            {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            Add
-          </button>
         </div>
       </div>
     </div>
@@ -194,15 +268,12 @@ function SmtpConfigPanel() {
     fetch("/api/smtp", { credentials: "include" })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
-        if (data) {
-          setForm((f) => ({
-            ...f,
-            host: data.host ?? f.host, port: String(data.port ?? f.port),
-            secure: data.secure ?? f.secure, username: data.username ?? f.username,
-            password: data.password ?? "", fromName: data.fromName ?? f.fromName,
-            fromEmail: data.fromEmail ?? f.fromEmail, enabled: data.enabled ?? false,
-          }));
-        }
+        if (data) setForm((f) => ({
+          ...f, host: data.host ?? f.host, port: String(data.port ?? f.port),
+          secure: data.secure ?? f.secure, username: data.username ?? f.username,
+          password: data.password ?? "", fromName: data.fromName ?? f.fromName,
+          fromEmail: data.fromEmail ?? f.fromEmail, enabled: data.enabled ?? false,
+        }));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -221,22 +292,16 @@ function SmtpConfigPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, port: Number(form.port) }),
       });
-      if (!res.ok) throw new Error("Save failed");
+      if (!res.ok) throw new Error();
       toast({ title: "SMTP configuration saved" });
     } catch {
       toast({ variant: "destructive", title: "Failed to save SMTP configuration" });
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   const handleTest = async () => {
-    if (!form.testRecipient) {
-      toast({ variant: "destructive", title: "Enter a test recipient email first" });
-      return;
-    }
-    setTesting(true);
-    setTestResult(null);
+    if (!form.testRecipient) { toast({ variant: "destructive", title: "Enter a test recipient email first" }); return; }
+    setTesting(true); setTestResult(null);
     try {
       const res = await fetch("/api/smtp/test", {
         method: "POST", credentials: "include",
@@ -247,61 +312,59 @@ function SmtpConfigPanel() {
       setTestResult(result);
       if (result.success) toast({ title: "Test email sent successfully!" });
       else toast({ variant: "destructive", title: "Test failed", description: result.error });
-    } catch {
-      toast({ variant: "destructive", title: "Test request failed" });
-    } finally {
-      setTesting(false);
-    }
+    } catch { toast({ variant: "destructive", title: "Test request failed" }); }
+    finally { setTesting(false); }
   };
 
-  const field = (label: string, fieldKey: keyof SmtpForm, type = "text", placeholder = "") => (
-    <div>
-      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{label}</label>
-      <input type={type} value={String(form[fieldKey])} placeholder={placeholder}
-        onChange={(e) => handleChange(fieldKey, e.target.value)}
-        className="input-base text-sm" />
-    </div>
-  );
-
   if (loading) return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 flex items-center justify-center">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm h-64 flex items-center justify-center">
       <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
     </div>
   );
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="px-6 py-5 bg-blue-50/60 border-b border-blue-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-              <Mail className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-slate-900">SMTP Email Configuration</h3>
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${form.enabled ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-                  {form.enabled ? "Enabled" : "Disabled"}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">Auto-send email notifications on claim create, update, and delete</p>
-            </div>
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-blue-50/50">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+            <Mail className="w-4 h-4" />
           </div>
-          <button onClick={() => handleChange("enabled", !form.enabled)}
-            className={`transition-colors ${form.enabled ? "text-emerald-600" : "text-slate-300"}`}
-            title={form.enabled ? "Disable notifications" : "Enable notifications"}>
-            {form.enabled ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
-          </button>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">SMTP Email Configuration</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Send notifications on claim create, update, and delete</p>
+          </div>
         </div>
+        <button
+          onClick={() => handleChange("enabled", !form.enabled)}
+          className="flex items-center gap-2 transition-colors"
+          title={form.enabled ? "Disable notifications" : "Enable notifications"}
+        >
+          <span className={cn("text-xs font-semibold", form.enabled ? "text-emerald-600" : "text-slate-400")}>
+            {form.enabled ? "Enabled" : "Disabled"}
+          </span>
+          {form.enabled
+            ? <ToggleRight className="w-7 h-7 text-emerald-500" />
+            : <ToggleLeft className="w-7 h-7 text-slate-300" />}
+        </button>
       </div>
 
-      <div className="px-6 py-5 space-y-5">
-        <div>
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Server Settings</div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {field("SMTP Host", "host", "text", "e.g. smtppro.zoho.in")}
-            {field("Port", "port", "number", "465")}
+      <div className="px-6 py-5 grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6">
+        {/* Server Settings */}
+        <div className="space-y-4">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Server Settings</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2 sm:col-span-1">
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">SMTP Host</label>
+              <input type="text" value={form.host} onChange={(e) => handleChange("host", e.target.value)}
+                placeholder="smtppro.zoho.in" className="input-base text-sm" />
+            </div>
             <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Port</label>
+              <input type="number" value={form.port} onChange={(e) => handleChange("port", e.target.value)}
+                placeholder="465" className="input-base text-sm" />
+            </div>
+            <div className="col-span-2">
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Security</label>
               <select value={form.secure ? "true" : "false"} onChange={(e) => handleChange("secure", e.target.value === "true")}
                 className="input-base text-sm appearance-none">
@@ -310,12 +373,14 @@ function SmtpConfigPanel() {
               </select>
             </div>
           </div>
-        </div>
 
-        <div>
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Authentication</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {field("Username / Email", "username", "text", "your@email.com")}
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest pt-2">Authentication</p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Username / Email</label>
+              <input type="text" value={form.username} onChange={(e) => handleChange("username", e.target.value)}
+                placeholder="your@email.com" className="input-base text-sm" />
+            </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Password</label>
               <div className="relative">
@@ -331,85 +396,83 @@ function SmtpConfigPanel() {
           </div>
         </div>
 
-        <div>
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Sender Identity</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {field("From Name", "fromName", "text", "Light Finance")}
-            {field("From Email", "fromEmail", "email", "no_reply@lightfinance.com")}
+        {/* Sender + Test */}
+        <div className="space-y-4">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Sender Identity</p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">From Name</label>
+              <input type="text" value={form.fromName} onChange={(e) => handleChange("fromName", e.target.value)}
+                placeholder="Light Finance" className="input-base text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">From Email</label>
+              <input type="email" value={form.fromEmail} onChange={(e) => handleChange("fromEmail", e.target.value)}
+                placeholder="no_reply@example.com" className="input-base text-sm" />
+            </div>
           </div>
-        </div>
 
-        <div className="border-t border-slate-100 pt-5">
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Send Test Email</div>
-          <div className="flex gap-3 items-end">
-            <div className="flex-1">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Test Recipient</label>
+          <div className="pt-2 border-t border-slate-100 space-y-3">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Send Test Email</p>
+            <div className="flex gap-2">
               <input type="email" value={form.testRecipient}
                 onChange={(e) => handleChange("testRecipient", e.target.value)}
-                placeholder="recipient@example.com" className="input-base text-sm" />
+                placeholder="recipient@example.com" className="flex-1 input-base text-sm" />
+              <button onClick={handleTest} disabled={testing || !form.testRecipient}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
+                {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FlaskConical className="w-4 h-4" />}
+                Test
+              </button>
             </div>
-            <button onClick={handleTest} disabled={testing || !form.testRecipient}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
-              {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FlaskConical className="w-4 h-4" />}
-              Send Test
-            </button>
+            {testResult && (
+              <div className={cn("flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold border",
+                testResult.success ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-700 border-red-200")}>
+                {testResult.success
+                  ? <><CheckCircle className="w-4 h-4 shrink-0" /> Test email sent!</>
+                  : <><XCircle className="w-4 h-4 shrink-0" /> {testResult.error ?? "Failed to send"}</>}
+              </div>
+            )}
           </div>
-
-          {testResult && (
-            <div className={`mt-3 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold ${testResult.success ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
-              {testResult.success
-                ? <><CheckCircle className="w-4 h-4 shrink-0" /> Test email sent successfully!</>
-                : <><XCircle className="w-4 h-4 shrink-0" /> {testResult.error ?? "Failed to send test email"}</>
-              }
-            </div>
-          )}
         </div>
+      </div>
 
-        <div className="flex justify-end pt-1">
-          <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-blue-200">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-            Save Configuration
-          </button>
-        </div>
+      <div className="flex justify-end px-6 pb-5">
+        <button onClick={handleSave} disabled={saving}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 shadow-sm">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+          Save Configuration
+        </button>
       </div>
     </div>
   );
 }
 
+type Tab = "options" | "email";
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const [optionsMap, setOptionsMap] = useState<Record<string, Option[]>>({});
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<Tab>("options");
 
-  const fetchSettings = async () => {
-    try {
-      const res = await fetch("/api/settings", { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load settings");
-      const data: Record<string, Option[]> = await res.json();
-      setOptionsMap(data);
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchSettings(); }, []);
+  useEffect(() => {
+    fetch("/api/settings", { credentials: "include" })
+      .then((r) => r.ok ? r.json() : {})
+      .then((data: Record<string, Option[]>) => setOptionsMap(data))
+      .catch((e) => toast({ variant: "destructive", title: "Error", description: e.message }))
+      .finally(() => setLoading(false));
+  }, []);
 
   const handleAdd = async (category: string, value: string) => {
     const res = await fetch("/api/settings", {
       method: "POST", headers: { "Content-Type": "application/json" },
       credentials: "include", body: JSON.stringify({ category, value }),
     });
-    if (res.status === 409) {
-      toast({ variant: "destructive", title: "Already exists", description: `"${value}" already exists in this list.` });
-      return;
-    }
+    if (res.status === 409) { toast({ variant: "destructive", title: "Already exists", description: `"${value}" already exists.` }); return; }
     if (!res.ok) { toast({ variant: "destructive", title: "Failed to add option" }); return; }
-    const newOption: Option & { category: string } = await res.json();
-    setOptionsMap((prev) => ({ ...prev, [category]: [...(prev[category] ?? []), { id: newOption.id, value: newOption.value }] }));
-    toast({ title: "Option added", description: `"${value}" added.` });
+    const newOpt: Option & { category: string } = await res.json();
+    setOptionsMap((prev) => ({ ...prev, [category]: [...(prev[category] ?? []), { id: newOpt.id, value: newOpt.value }] }));
+    toast({ title: "Added", description: `"${value}" added.` });
   };
 
   const handleEdit = async (category: string, id: number, value: string) => {
@@ -417,61 +480,68 @@ export default function SettingsPage() {
       method: "PUT", headers: { "Content-Type": "application/json" },
       credentials: "include", body: JSON.stringify({ value }),
     });
-    if (res.status === 409) {
-      toast({ variant: "destructive", title: "Already exists", description: `"${value}" already exists in this list.` });
-      throw new Error("duplicate");
-    }
-    if (!res.ok) { toast({ variant: "destructive", title: "Failed to update option" }); throw new Error("failed"); }
+    if (res.status === 409) { toast({ variant: "destructive", title: "Already exists", description: `"${value}" already exists.` }); throw new Error("duplicate"); }
+    if (!res.ok) { toast({ variant: "destructive", title: "Failed to update" }); throw new Error("failed"); }
     const updated: Option = await res.json();
-    setOptionsMap((prev) => ({
-      ...prev,
-      [category]: (prev[category] ?? []).map((o) => o.id === id ? { id: updated.id, value: updated.value } : o),
-    }));
-    toast({ title: "Option updated", description: `Renamed to "${value}".` });
+    setOptionsMap((prev) => ({ ...prev, [category]: (prev[category] ?? []).map((o) => o.id === id ? { id: updated.id, value: updated.value } : o) }));
+    toast({ title: "Updated", description: `Renamed to "${value}".` });
   };
 
   const handleDelete = async (category: string, id: number, value: string) => {
     const res = await fetch(`/api/settings/${id}`, { method: "DELETE", credentials: "include" });
-    if (!res.ok) { toast({ variant: "destructive", title: "Failed to remove option" }); return; }
+    if (!res.ok) { toast({ variant: "destructive", title: "Failed to remove" }); return; }
     setOptionsMap((prev) => ({ ...prev, [category]: (prev[category] ?? []).filter((o) => o.id !== id) }));
-    toast({ title: "Option removed", description: `"${value}" removed.` });
+    toast({ title: "Removed", description: `"${value}" removed.` });
   };
+
+  const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
+    { key: "options", label: "Dropdown Options", icon: <Tag className="w-4 h-4" /> },
+    { key: "email", label: "Email (SMTP)", icon: <Mail className="w-4 h-4" /> },
+  ];
 
   return (
     <AppLayout>
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
-            <Settings className="w-5 h-5" />
-          </div>
-          <h1 className="text-2xl font-display font-bold text-slate-900">Settings</h1>
+      {/* Page header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
+          <Settings className="w-5 h-5" />
         </div>
-        <p className="text-sm text-slate-500 ml-12">Manage dropdown options and email notification settings.</p>
+        <div>
+          <h1 className="text-2xl font-display font-bold text-slate-900 leading-none">Settings</h1>
+          <p className="text-xs text-slate-400 mt-0.5">Manage dropdown options and email notifications</p>
+        </div>
       </div>
 
-      <div className="space-y-8">
-        <section>
-          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Email Notifications</h2>
-          <SmtpConfigPanel />
-        </section>
-
-        <section>
-          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Dropdown Options</h2>
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-7 h-7 animate-spin text-indigo-400" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              {CATEGORIES.map((cat) => (
-                <CategoryCard key={cat.key} category={cat}
-                  options={optionsMap[cat.key] ?? []}
-                  onAdd={handleAdd} onEdit={handleEdit} onDelete={handleDelete} />
-              ))}
-            </div>
-          )}
-        </section>
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-slate-200 mb-6">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all -mb-px",
+              activeTab === tab.key
+                ? "border-indigo-600 text-indigo-600"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            )}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
       </div>
+
+      {/* Content */}
+      {activeTab === "options" && (
+        <DropdownOptionsPanel
+          optionsMap={optionsMap}
+          loading={loading}
+          onAdd={handleAdd}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      )}
+      {activeTab === "email" && <SmtpConfigPanel />}
     </AppLayout>
   );
 }
