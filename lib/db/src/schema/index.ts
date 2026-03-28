@@ -6,3 +6,4 @@ export * from "./settings";
 export * from "./smtp-config";
 export * from "./policies";
 export * from "./assets";
+export * from "./employee-master";

@@ -208,12 +208,19 @@ export default function CreateClaim() {
   const [assetInfo, setAssetInfo] = useState<AssetLookupResult | null>(null);
   const debouncedAssetCode = useDebounce(formData.assetCode, 600);
 
+  const [empLookupStatus, setEmpLookupStatus] = useState<"idle" | "loading" | "found" | "not_found">("idle");
+  const debouncedEmployeeId = useDebounce(formData.employeeId, 600);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (name === "assetCode") {
       setAssetLookupStatus("idle");
       setAssetInfo(null);
+    }
+    if (name === "employeeId") {
+      setEmpLookupStatus("idle");
+      setFormData((prev) => ({ ...prev, employeeId: value, employeeName: "" }));
     }
   };
 
@@ -242,6 +249,24 @@ export default function CreateClaim() {
   useEffect(() => {
     fetchAsset(debouncedAssetCode);
   }, [debouncedAssetCode, fetchAsset]);
+
+  const fetchEmployee = useCallback(async (empId: string) => {
+    if (!empId.trim()) { setEmpLookupStatus("idle"); return; }
+    setEmpLookupStatus("loading");
+    try {
+      const res = await fetch(`/api/employees/${encodeURIComponent(empId.trim())}`, { credentials: "include" });
+      if (!res.ok) { setEmpLookupStatus("not_found"); return; }
+      const data = await res.json();
+      setEmpLookupStatus("found");
+      setFormData((prev) => ({ ...prev, employeeName: data.employeeName || prev.employeeName }));
+    } catch {
+      setEmpLookupStatus("not_found");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchEmployee(debouncedEmployeeId);
+  }, [debouncedEmployeeId, fetchEmployee]);
 
   const uploadFile = async (claimId: number, file: File, documentType: string) => {
     const fd = new FormData();
@@ -313,8 +338,50 @@ export default function CreateClaim() {
         <div className="card p-6">
           <h2 className="text-base font-display font-bold text-slate-900 border-b border-slate-100 pb-3 mb-5">Basic Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <InputField label="Employee ID *" name="employeeId" value={formData.employeeId} onChange={handleChange} required />
-            <InputField label="Employee Name *" name="employeeName" value={formData.employeeName} onChange={handleChange} required />
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Employee ID *</label>
+              <div className="relative">
+                <input
+                  className={cn(
+                    "input-base pr-10",
+                    empLookupStatus === "found" && "border-emerald-400 focus:border-emerald-500",
+                    empLookupStatus === "not_found" && "border-red-400 focus:border-red-500"
+                  )}
+                  name="employeeId"
+                  value={formData.employeeId}
+                  onChange={handleChange}
+                  required
+                  placeholder="Enter Employee ID to auto-fill name"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  {empLookupStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+                  {empLookupStatus === "found" && <CheckCircle className="w-4 h-4 text-emerald-500" />}
+                  {empLookupStatus === "not_found" && <AlertCircle className="w-4 h-4 text-red-500" />}
+                </div>
+              </div>
+              {empLookupStatus === "not_found" && (
+                <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" /> Employee not found
+                </p>
+              )}
+              {empLookupStatus === "found" && (
+                <p className="mt-1 text-xs text-emerald-600 flex items-center gap-1">
+                  <CheckCircle className="w-3.5 h-3.5" /> Employee name auto-filled
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Employee Name *</label>
+              <input
+                className={cn("input-base", empLookupStatus === "found" && "bg-slate-50 text-slate-500")}
+                name="employeeName"
+                value={formData.employeeName}
+                onChange={handleChange}
+                required
+                placeholder="Auto-filled from Employee ID"
+                readOnly={empLookupStatus === "found"}
+              />
+            </div>
 
             {/* Asset Code with inline auto-fetch */}
             <div>

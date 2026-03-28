@@ -9,6 +9,7 @@ import settingsRouter from "./settings";
 import smtpRouter from "./smtp";
 import policiesRouter from "./policies";
 import assetsRouter from "./assets";
+import employeesRouter from "./employees";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use("/settings", settingsRouter);
 router.use("/smtp", smtpRouter);
 router.use("/policies", policiesRouter);
 router.use("/assets", assetsRouter);
+router.use("/employees", employeesRouter);
 
 export default router;

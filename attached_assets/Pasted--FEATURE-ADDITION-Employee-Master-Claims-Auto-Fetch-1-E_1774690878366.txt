@@ -1,0 +1,112 @@
+# FEATURE ADDITION: Employee Master & Claims Auto-Fetch
+
+## 1. Employee Master (Settings Module)
+
+Add a new section inside the "Settings" menu called:
+➡️ "Employee Details"
+
+### Fields Required:
+Create a form and database table with the following fields:
+
+- Employee ID (Unique, Required)
+- Employee Name (Required)
+- Date of Joining (Required, Format: DD/MM/YYYY)
+- Department
+- Designation
+- Location
+- State
+- Phone No
+- Email ID
+
+### Backend:
+- Create a new table: employee_master
+- Ensure Employee ID is unique
+- Store Date in proper date format but display as DD/MM/YYYY
+
+---
+
+## 2. Employee Data Management Features
+
+### a. Download Option
+- Add a "Download" button
+- Export employee data as Excel/CSV
+- Ensure Date format: DD/MM/YYYY
+
+### b. Edit Option
+- Allow editing of employee records
+- Update database on save
+
+### c. Bulk Upload Option
+- Add "Bulk Upload" feature using Excel/CSV
+- Provide a "Sample File Download" button
+
+#### Sample File Format Columns:
+Employee ID, Employee Name, Date of Joining, Department, Designation, Location, State, Phone No, Email ID
+
+- Validate:
+  - Date format must be DD/MM/YYYY
+  - Employee ID must be unique
+  - Required fields must not be empty
+
+---
+
+## 3. Claims Module Enhancement
+
+### Auto Fetch Employee Name
+
+In "New Claims" form:
+
+- When user enters "Employee ID":
+  → Automatically fetch and display "Employee Name" from Employee Master
+
+### Implementation:
+- Use AJAX / API call:
+  GET /employee/<employee_id>
+
+- If Employee ID exists:
+  → Autofill Employee Name field (read-only)
+
+- If not found:
+  → Show error: "Employee not found"
+
+---
+
+## 4. UI/UX Requirements
+
+- Keep UI simple and user-friendly
+- Use form validation (frontend + backend)
+- Show success/error messages clearly
+
+---
+
+## 5. Validation Rules
+
+- Employee ID must be unique
+- Email must be valid format
+- Phone number numeric validation
+- Date format strictly DD/MM/YYYY
+
+---
+
+## 6. API Endpoints Required
+
+- POST /employee → Add employee
+- GET /employee/<id> → Fetch employee
+- PUT /employee/<id> → Update employee
+- GET /employee/download → Export data
+- POST /employee/bulk-upload → Upload file
+
+---
+
+## 7. Tech Notes
+
+- Use Flask (existing project structure)
+- Use Pandas or CSV module for file handling
+- Ensure error handling and logging
+
+---
+
+## 8. Language Preferences
+
+- Replit Agent Interaction Language: English
+- Application Interface Language: English

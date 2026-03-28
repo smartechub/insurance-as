@@ -52,8 +52,9 @@ function DropdownOptionsPanel({
   onDelete: (cat: string, id: number, val: string) => Promise<void>;
 }) {
   const [activeCat, setActiveCat] = useState(CATEGORIES[0].key);
-  const category = CATEGORIES.find((c) => c.key === activeCat)!;
-  const options = optionsMap[activeCat] ?? [];
+  const category = CATEGORIES.find((c) => c.key === activeCat) ?? CATEGORIES[0];
+  const safeActiveCat = category.key;
+  const options = optionsMap[safeActiveCat] ?? [];
   const ac = ACCENT[category.accent];
 
   const [newValue, setNewValue] = useState("");
@@ -73,13 +74,13 @@ function DropdownOptionsPanel({
   const handleAdd = async () => {
     if (!newValue.trim()) return;
     setAdding(true);
-    try { await onAdd(activeCat, newValue.trim()); setNewValue(""); addInputRef.current?.focus(); }
+    try { await onAdd(safeActiveCat, newValue.trim()); setNewValue(""); addInputRef.current?.focus(); }
     finally { setAdding(false); }
   };
 
   const handleDelete = async (id: number, val: string) => {
     setDeletingId(id);
-    try { await onDelete(activeCat, id, val); }
+    try { await onDelete(safeActiveCat, id, val); }
     finally { setDeletingId(null); }
   };
 
@@ -89,7 +90,7 @@ function DropdownOptionsPanel({
   const handleSaveEdit = async (id: number) => {
     if (!editValue.trim()) return;
     setSavingId(id);
-    try { await onEdit(activeCat, id, editValue.trim()); setEditingId(null); setEditValue(""); }
+    try { await onEdit(safeActiveCat, id, editValue.trim()); setEditingId(null); setEditValue(""); }
     finally { setSavingId(null); }
   };
 
@@ -789,7 +790,344 @@ function PolicyManagementPanel() {
   );
 }
 
-type Tab = "options" | "email" | "policy";
+interface Employee {
+  id: number;
+  employeeId: string;
+  employeeName: string;
+  dateOfJoining: string;
+  department: string | null;
+  designation: string | null;
+  location: string | null;
+  state: string | null;
+  phoneNo: string | null;
+  emailId: string | null;
+}
+
+const EMPTY_EMP = {
+  employeeId: "", employeeName: "", dateOfJoining: "",
+  department: "", designation: "", location: "", state: "", phoneNo: "", emailId: "",
+};
+
+function EmployeeFormModal({
+  initial, onClose, onSave, isSaving,
+}: {
+  initial?: Employee | null;
+  onClose: () => void;
+  onSave: (data: typeof EMPTY_EMP) => Promise<void>;
+  isSaving: boolean;
+}) {
+  const [form, setForm] = useState(initial ? {
+    employeeId: initial.employeeId,
+    employeeName: initial.employeeName,
+    dateOfJoining: initial.dateOfJoining,
+    department: initial.department ?? "",
+    designation: initial.designation ?? "",
+    location: initial.location ?? "",
+    state: initial.state ?? "",
+    phoneNo: initial.phoneNo ?? "",
+    emailId: initial.emailId ?? "",
+  } : { ...EMPTY_EMP });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  };
+
+  const Field = ({ label, name, type = "text", required }: { label: string; name: string; type?: string; required?: boolean }) => (
+    <div>
+      <label className="block text-xs font-semibold text-slate-600 mb-1">{label}{required && " *"}</label>
+      <input
+        type={type}
+        name={name}
+        value={(form as any)[name]}
+        onChange={handleChange}
+        required={required}
+        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+        placeholder={name === "dateOfJoining" ? "DD/MM/YYYY" : ""}
+      />
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100 sticky top-0 bg-white z-10">
+          <h2 className="text-lg font-display font-bold text-slate-900">
+            {initial ? "Edit Employee" : "Add Employee"}
+          </h2>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <form
+          onSubmit={(e) => { e.preventDefault(); onSave(form); }}
+          className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4"
+        >
+          <Field label="Employee ID" name="employeeId" required />
+          <Field label="Employee Name" name="employeeName" required />
+          <Field label="Date of Joining (DD/MM/YYYY)" name="dateOfJoining" required />
+          <Field label="Department" name="department" />
+          <Field label="Designation" name="designation" />
+          <Field label="Location" name="location" />
+          <Field label="State" name="state" />
+          <Field label="Phone No" name="phoneNo" type="tel" />
+          <Field label="Email ID" name="emailId" type="email" />
+          <div className="md:col-span-2 flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={isSaving} className="btn-primary disabled:opacity-60">
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {initial ? "Save Changes" : "Add Employee"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EmployeeBulkUploadModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const { toast } = useToast();
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/employees/bulk-upload", { method: "POST", body: fd, credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data.details?.slice(0, 3).join("; ") || data.error || "Upload failed";
+        throw new Error(msg);
+      }
+      toast({ title: "Upload complete", description: `${data.inserted} added, ${data.skipped} skipped` });
+      onDone();
+      onClose();
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Upload failed", description: err.message });
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 className="text-lg font-display font-bold text-slate-900">Bulk Upload Employees</h2>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm text-blue-800">
+            Upload a CSV file with employee data. Duplicate Employee IDs will be skipped.
+          </div>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-slate-500">Upload CSV file</p>
+            <a
+              href="/api/employees/sample"
+              download="employee_sample.csv"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download Sample File
+            </a>
+          </div>
+          <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          {file ? (
+            <div className="flex items-center gap-3 p-4 border border-slate-200 rounded-xl bg-slate-50 mb-4">
+              <FileText className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-800 truncate">{file.name}</p>
+                <p className="text-xs text-slate-400">{(file.size / 1024).toFixed(1)} KB</p>
+              </div>
+              <button onClick={() => setFile(null)} className="text-slate-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="w-full flex flex-col items-center gap-2 py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-indigo-400 hover:text-indigo-600 text-sm font-medium transition-all mb-4"
+            >
+              <UploadCloud className="w-8 h-8" />
+              <span>Click to select CSV file</span>
+            </button>
+          )}
+        </div>
+        <div className="flex justify-end gap-3 px-6 pb-6">
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={handleUpload} disabled={!file || loading} className="btn-primary disabled:opacity-60">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+            Upload
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmployeeDetailsPanel() {
+  const { toast } = useToast();
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [editEmp, setEditEmp] = useState<Employee | null>(null);
+  const [showBulk, setShowBulk] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const loadEmployees = () => {
+    setLoading(true);
+    fetch("/api/employees", { credentials: "include" })
+      .then((r) => r.json())
+      .then(setEmployees)
+      .catch(() => toast({ variant: "destructive", title: "Failed to load employees" }))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { loadEmployees(); }, []);
+
+  const handleSave = async (data: typeof EMPTY_EMP, id?: number) => {
+    setIsSaving(true);
+    try {
+      const url = id ? `/api/employees/${id}` : "/api/employees";
+      const method = id ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method, headers: { "Content-Type": "application/json" },
+        credentials: "include", body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (res.status === 409) { toast({ variant: "destructive", title: "Employee ID already exists" }); return; }
+      if (!res.ok) throw new Error(result.error || "Failed to save");
+      toast({ title: id ? "Employee updated" : "Employee added" });
+      loadEmployees();
+      setShowAdd(false);
+      setEditEmp(null);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error", description: err.message });
+    } finally { setIsSaving(false); }
+  };
+
+  const handleDelete = async (emp: Employee) => {
+    if (!confirm(`Delete employee "${emp.employeeName}" (${emp.employeeId})?`)) return;
+    try {
+      const res = await fetch(`/api/employees/${emp.id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error();
+      toast({ title: "Employee deleted" });
+      setEmployees((prev) => prev.filter((e) => e.id !== emp.id));
+    } catch {
+      toast({ variant: "destructive", title: "Failed to delete employee" });
+    }
+  };
+
+  const filtered = employees.filter((e) =>
+    !search ||
+    e.employeeId.toLowerCase().includes(search.toLowerCase()) ||
+    e.employeeName.toLowerCase().includes(search.toLowerCase()) ||
+    (e.department ?? "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+        <div>
+          <p className="text-sm text-slate-500">Manage employee master data used for claim auto-fill.</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <a
+            href="/api/employees/download"
+            download="employees.csv"
+            className="btn-secondary inline-flex items-center gap-1.5"
+          >
+            <Download className="w-4 h-4" /> Download
+          </a>
+          <button onClick={() => setShowBulk(true)} className="btn-secondary inline-flex items-center gap-1.5">
+            <UploadCloud className="w-4 h-4" /> Bulk Upload
+          </button>
+          <button onClick={() => setShowAdd(true)} className="btn-primary inline-flex items-center gap-1.5">
+            <Plus className="w-4 h-4" /> Add Employee
+          </button>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search by Employee ID, Name or Department..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+        />
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
+      ) : filtered.length === 0 ? (
+        <div className="card p-12 text-center text-slate-400">
+          <Users2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="font-semibold text-slate-500">{search ? "No employees match your search" : "No employees yet"}</p>
+          {!search && <p className="text-sm mt-1">Add employees or use Bulk Upload to import from CSV.</p>}
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50">
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600">Employee ID</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600">Name</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600">Date of Joining</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600">Department</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600">Designation</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600">Location</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600">Phone</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600">Email</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((emp) => (
+                  <tr key={emp.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 font-mono text-xs text-indigo-700 font-semibold">{emp.employeeId}</td>
+                    <td className="px-4 py-3 font-medium text-slate-800">{emp.employeeName}</td>
+                    <td className="px-4 py-3 text-slate-500">{emp.dateOfJoining}</td>
+                    <td className="px-4 py-3 text-slate-500">{emp.department ?? "—"}</td>
+                    <td className="px-4 py-3 text-slate-500">{emp.designation ?? "—"}</td>
+                    <td className="px-4 py-3 text-slate-500">{emp.location ?? "—"}</td>
+                    <td className="px-4 py-3 text-slate-500">{emp.phoneNo ?? "—"}</td>
+                    <td className="px-4 py-3 text-slate-500">{emp.emailId ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setEditEmp(emp)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => handleDelete(emp)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {showAdd && (
+        <EmployeeFormModal onClose={() => setShowAdd(false)} onSave={(d) => handleSave(d)} isSaving={isSaving} />
+      )}
+      {editEmp && (
+        <EmployeeFormModal initial={editEmp} onClose={() => setEditEmp(null)} onSave={(d) => handleSave(d, editEmp.id)} isSaving={isSaving} />
+      )}
+      {showBulk && (
+        <EmployeeBulkUploadModal onClose={() => setShowBulk(false)} onDone={loadEmployees} />
+      )}
+    </div>
+  );
+}
+
+type Tab = "options" | "email" | "policy" | "employees";
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -838,6 +1176,7 @@ export default function SettingsPage() {
 
   const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: "options", label: "Dropdown Options", icon: <Tag className="w-4 h-4" /> },
+    { key: "employees", label: "Employee Details", icon: <Users2 className="w-4 h-4" /> },
     { key: "email", label: "Email (SMTP)", icon: <Mail className="w-4 h-4" /> },
     { key: "policy", label: "Policy Management", icon: <Shield className="w-4 h-4" /> },
   ];
@@ -884,6 +1223,7 @@ export default function SettingsPage() {
           onDelete={handleDelete}
         />
       )}
+      {activeTab === "employees" && <EmployeeDetailsPanel />}
       {activeTab === "email" && <SmtpConfigPanel />}
       {activeTab === "policy" && <PolicyManagementPanel />}
     </AppLayout>

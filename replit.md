@@ -49,6 +49,7 @@ artifacts-monorepo/
 - **users**: id, firstName, lastName, name, email, password, role (admin/user), employeeId, designation, department, resetToken, createdAt
 - **claims**: id, employeeId, employeeName, assetCode, assetType, serialNo, damageDate, repairDate, effectedPart, caseId, payableAmount, recoverAmount, fileCharge, claimStatus, employeeFileChargeStatus, remark, createdBy, timestamps
 - **documents**: id, claimId, fileName, filePath, fileType, documentType, createdAt
+- **employee_master**: id, employeeId (unique), employeeName, dateOfJoining, department, designation, location, state, phoneNo, emailId, timestamps
 
 ## Audit Log
 
