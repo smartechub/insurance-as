@@ -832,20 +832,8 @@ function EmployeeFormModal({
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
   };
 
-  const Field = ({ label, name, type = "text", required }: { label: string; name: string; type?: string; required?: boolean }) => (
-    <div>
-      <label className="block text-xs font-semibold text-slate-600 mb-1">{label}{required && " *"}</label>
-      <input
-        type={type}
-        name={name}
-        value={(form as any)[name]}
-        onChange={handleChange}
-        required={required}
-        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
-        placeholder={name === "dateOfJoining" ? "DD/MM/YYYY" : ""}
-      />
-    </div>
-  );
+  const inputCls = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent";
+  const labelCls = "block text-xs font-semibold text-slate-600 mb-1";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -862,15 +850,42 @@ function EmployeeFormModal({
           onSubmit={(e) => { e.preventDefault(); onSave(form); }}
           className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4"
         >
-          <Field label="Employee ID" name="employeeId" required />
-          <Field label="Employee Name" name="employeeName" required />
-          <Field label="Date of Joining (DD/MM/YYYY)" name="dateOfJoining" required />
-          <Field label="Department" name="department" />
-          <Field label="Designation" name="designation" />
-          <Field label="Location" name="location" />
-          <Field label="State" name="state" />
-          <Field label="Phone No" name="phoneNo" type="tel" />
-          <Field label="Email ID" name="emailId" type="email" />
+          <div>
+            <label className={labelCls}>Employee ID *</label>
+            <input className={inputCls} name="employeeId" value={form.employeeId} onChange={handleChange} required />
+          </div>
+          <div>
+            <label className={labelCls}>Employee Name *</label>
+            <input className={inputCls} name="employeeName" value={form.employeeName} onChange={handleChange} required />
+          </div>
+          <div>
+            <label className={labelCls}>Date of Joining (DD/MM/YYYY) *</label>
+            <input className={inputCls} name="dateOfJoining" value={form.dateOfJoining} onChange={handleChange} required placeholder="DD/MM/YYYY" />
+          </div>
+          <div>
+            <label className={labelCls}>Department</label>
+            <input className={inputCls} name="department" value={form.department} onChange={handleChange} />
+          </div>
+          <div>
+            <label className={labelCls}>Designation</label>
+            <input className={inputCls} name="designation" value={form.designation} onChange={handleChange} />
+          </div>
+          <div>
+            <label className={labelCls}>Location</label>
+            <input className={inputCls} name="location" value={form.location} onChange={handleChange} />
+          </div>
+          <div>
+            <label className={labelCls}>State</label>
+            <input className={inputCls} name="state" value={form.state} onChange={handleChange} />
+          </div>
+          <div>
+            <label className={labelCls}>Phone No</label>
+            <input className={inputCls} name="phoneNo" type="tel" value={form.phoneNo} onChange={handleChange} />
+          </div>
+          <div>
+            <label className={labelCls}>Email ID</label>
+            <input className={inputCls} name="emailId" type="email" value={form.emailId} onChange={handleChange} />
+          </div>
           <div className="md:col-span-2 flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
             <button type="submit" disabled={isSaving} className="btn-primary disabled:opacity-60">
