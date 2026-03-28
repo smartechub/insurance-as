@@ -10,6 +10,8 @@ export interface ClaimEmailData {
   assetCode: string;
   assetType?: string | null;
   serialNo?: string | null;
+  policyNumber?: string | null;
+  model?: string | null;
   claimStatus?: string | null;
   payableAmount?: number | null;
   recoverAmount?: number | null;
@@ -327,8 +329,10 @@ function buildClaimEmailHtml(data: ClaimEmailData): string {
       <div style="background:#f8fafc;border-radius:12px;padding:20px;margin-bottom:20px;">
         <div style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Asset & Claim Details</div>
         <table width="100%" cellpadding="0" cellspacing="0">
+          ${row("Policy Number", data.policyNumber ?? "")}
           ${row("Asset Code", data.assetCode)}
           ${row("Asset Type", data.assetType ?? "")}
+          ${row("Model", data.model ?? "")}
           ${row("Serial No.", data.serialNo ?? "")}
           ${row("Affected Part", data.effectedPart ?? "")}
           ${row("Damage Date", data.damageDate ?? "")}

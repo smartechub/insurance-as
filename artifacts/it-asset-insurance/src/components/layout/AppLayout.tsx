@@ -13,6 +13,8 @@ import {
   Bell,
   Shield,
   Settings,
+  BookOpen,
+  Database,
 } from "lucide-react";
 import lightLogo from "@assets/Light_Logo_1774345301483.png";
 import { useGetMe, useLogout } from "@workspace/api-client-react";
@@ -24,6 +26,7 @@ const NAV = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Claims", href: "/claims", icon: FileText },
   { label: "New Claim", href: "/claims/new", icon: PlusCircle },
+  { label: "Asset List", href: "/assets", icon: Database },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -33,6 +36,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/users": "User Management",
   "/audit-log": "Audit Log",
   "/settings": "Settings",
+  "/policies": "Policy Management",
+  "/assets": "Asset List",
 };
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -69,6 +74,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const navItems = [...NAV];
   if (user?.role === "admin") {
+    navItems.push({ label: "Policies", href: "/policies", icon: BookOpen });
     navItems.push({ label: "Users", href: "/users", icon: Users });
     navItems.push({ label: "Audit Log", href: "/audit-log", icon: Shield });
     navItems.push({ label: "Settings", href: "/settings", icon: Settings });

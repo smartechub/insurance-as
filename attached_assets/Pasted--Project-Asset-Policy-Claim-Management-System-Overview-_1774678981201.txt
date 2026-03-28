@@ -1,0 +1,218 @@
+# Project: Asset Policy & Claim Management System
+
+## Overview
+Build a full-stack web application to manage asset policies and claims. The system should allow admins to upload policies with Excel asset data and allow users to create claims with auto-fetched asset details.
+
+---
+
+## Platform & Tech Stack
+- Platform: Web Application
+- Architecture: Full-stack
+- Backend: Node.js (Express) OR Python (Flask)
+- Frontend: React (preferred) or HTML/CSS/JS
+- Database: PostgreSQL (preferred) or SQLite
+- Hosting: Replit (Cloud)
+
+---
+
+## MODULE 1: Policy Management (Settings)
+
+### Features:
+- Create Policy with:
+  - Policy Number (unique, required)
+  - Start Date
+  - End Date
+  - Upload Policy PDF
+  - Upload Asset Excel File
+  - Active/Inactive Toggle
+
+### Logic:
+- Only ONE policy can be active at a time
+- Activating a policy automatically deactivates others
+- System always uses:
+  - Active policy
+  - Its Excel asset data
+
+---
+
+## MODULE 2: Excel Upload & Processing
+
+### Required Excel Columns:
+- Sr No.
+- Inventory No.
+- Asset No
+- Capitalization Date
+- Asset Class
+- Asset Class (Short Name)
+- Asset Description
+- Asset Type
+- Asset Sub Type
+- SBU
+- Plant
+- Quantity
+- Cost (Local)
+- NBV (Local)
+- Condition
+- Asset Criticality
+- Inventory On
+- LCD Serial No
+- IT Serial No
+- Processor
+- HDD
+- RAM
+- Model
+
+### Requirements:
+- Validate Excel before upload:
+  - All required columns must exist
+- Reject invalid files with clear error
+- Handle duplicate records (Asset No / Inventory No)
+- Store data linked to policy
+- Use bulk insert for performance
+
+---
+
+## MODULE 3: Active Policy Asset List
+
+### Features:
+- Display all assets of active policy
+- Table view with pagination
+
+### Search:
+- Asset No
+- Inventory No
+- Serial No
+- Model
+
+### Filters:
+- Asset Type
+- Plant
+- Condition
+
+### Requirements:
+- Fast search (debounced or button-based)
+- Server-side pagination
+
+---
+
+## MODULE 4: Create Claim
+
+### Auto-Fetch:
+When user enters Asset No / Code:
+Fetch from active policy:
+- Asset Type
+- Serial No (IT or LCD)
+- Model
+- Processor, RAM, HDD (optional)
+
+---
+
+## MODULE 5: Policy PDF Preview
+
+- Add Preview button
+- Open PDF in modal or new tab
+
+---
+
+## MODULE 6: Policy Number Usage
+
+Show Policy Number in:
+- Policy List
+- Claim Details
+- Email Notifications
+
+---
+
+## MODULE 7: Claim Email Notification
+
+### Trigger:
+- On claim creation
+
+### Email Includes:
+- Employee Details
+- Asset Details
+- Claim Details (date, amount, status)
+- Policy Number
+
+### Attachments:
+- Include uploaded files
+
+---
+
+## UI Requirements
+- Clean modern UI
+- Tables with:
+  - Search
+  - Filters
+  - Pagination
+- Responsive design
+
+---
+
+## Validation Rules
+- Required field validation everywhere
+- Strict Excel validation
+- Prevent duplicate assets
+- Only one active policy allowed
+- Proper error messages
+
+---
+
+## Database Design
+
+### Policies Table:
+- id
+- policy_number
+- start_date
+- end_date
+- pdf_file_path
+- is_active
+- created_at
+
+### Assets Table:
+- id
+- policy_id (FK)
+- asset_no
+- inventory_no
+- serial_no
+- model
+- processor
+- ram
+- hdd
+- asset_type
+- plant
+- condition
+- full_raw_data (JSON optional)
+
+### Claims Table:
+- id
+- asset_id
+- employee_name
+- claim_amount
+- claim_date
+- status
+- policy_number
+
+---
+
+## Performance
+- Fast Excel parsing
+- Indexed search fields (asset_no, inventory_no)
+- Efficient queries
+
+---
+
+## Language Preferences
+- Replit Agent Interaction Language: English
+- Application UI Language: English
+
+---
+
+## Development Approach
+- Build backend APIs first
+- Then frontend UI
+- Modular architecture:
+  - Policy service
+  - Excel processing service
+  - Claim service
+- Test each module step-by-step

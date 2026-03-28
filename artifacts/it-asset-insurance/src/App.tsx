@@ -15,6 +15,8 @@ import ClaimDetail from "@/pages/claim-detail";
 import Users from "@/pages/users";
 import AuditLog from "@/pages/audit-log";
 import SettingsPage from "@/pages/settings";
+import PoliciesPage from "@/pages/policies";
+import AssetList from "@/pages/asset-list";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +48,8 @@ function Router() {
       <Route path="/users" component={Users} />
       <Route path="/audit-log" component={AuditLog} />
       <Route path="/settings" component={SettingsPage} />
+      <Route path="/policies" component={PoliciesPage} />
+      <Route path="/assets" component={AssetList} />
       
       <Route component={NotFound} />
     </Switch>

@@ -1,9 +1,12 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useCreateClaim } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Loader2, UploadCloud, X, FileText, Archive, Image as ImageIcon, FileCheck, Eye } from "lucide-react";
+import {
+  ArrowLeft, Save, Loader2, UploadCloud, X, FileText, Archive,
+  Image as ImageIcon, FileCheck, Eye, Search, CheckCircle, AlertCircle
+} from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 
@@ -29,11 +32,6 @@ interface AttachmentState {
   otherDocuments: File[];
 }
 
-interface FilePreview {
-  file: File;
-  previewUrl?: string;
-}
-
 function getFileIcon(file: File) {
   if (file.type.startsWith("image/")) return <ImageIcon className="w-5 h-5" />;
   if (file.type === "application/pdf") return <FileText className="w-5 h-5" />;
@@ -44,49 +42,24 @@ function isImageFile(file: File) {
   return file.type.startsWith("image/");
 }
 
-function FilePreviewCard({
-  file,
-  onRemove,
-  onPreview,
-}: {
-  file: File;
-  onRemove: () => void;
-  onPreview?: () => void;
-}) {
+function FilePreviewCard({ file, onRemove, onPreview }: { file: File; onRemove: () => void; onPreview?: () => void }) {
   const previewUrl = isImageFile(file) ? URL.createObjectURL(file) : undefined;
-
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-white group hover:border-primary/40 hover:shadow-sm transition-all">
       <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-primary flex-shrink-0 overflow-hidden">
-        {previewUrl ? (
-          <img src={previewUrl} alt={file.name} className="w-full h-full object-cover rounded-lg" />
-        ) : (
-          getFileIcon(file)
-        )}
+        {previewUrl ? <img src={previewUrl} alt={file.name} className="w-full h-full object-cover rounded-lg" /> : getFileIcon(file)}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-slate-800 truncate" title={file.name}>
-          {file.name}
-        </p>
+        <p className="text-sm font-semibold text-slate-800 truncate" title={file.name}>{file.name}</p>
         <p className="text-xs text-slate-400">{(file.size / 1024).toFixed(1)} KB</p>
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         {previewUrl && (
-          <button
-            type="button"
-            onClick={onPreview}
-            title="Preview"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
-          >
+          <button type="button" onClick={onPreview} title="Preview" className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors">
             <Eye className="w-4 h-4" />
           </button>
         )}
-        <button
-          type="button"
-          onClick={onRemove}
-          title="Remove"
-          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-        >
+        <button type="button" onClick={onRemove} title="Remove" className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -94,19 +67,7 @@ function FilePreviewCard({
   );
 }
 
-function SingleFileUpload({
-  label,
-  description,
-  accept,
-  file,
-  onChange,
-}: {
-  label: string;
-  description?: string;
-  accept: string;
-  file: File | null;
-  onChange: (file: File | null) => void;
-}) {
+function SingleFileUpload({ label, description, accept, file, onChange }: { label: string; description?: string; accept: string; file: File | null; onChange: (file: File | null) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const previewUrl = file && isImageFile(file) ? URL.createObjectURL(file) : undefined;
@@ -115,55 +76,22 @@ function SingleFileUpload({
     <div>
       <label className="block text-sm font-semibold text-slate-700 mb-1">{label}</label>
       {description && <p className="text-xs text-slate-400 mb-2">{description}</p>}
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0] || null;
-          onChange(f);
-          e.target.value = "";
-        }}
-      />
-
+      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={(e) => { onChange(e.target.files?.[0] || null); e.target.value = ""; }} />
       {!file ? (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="w-full flex flex-col items-center gap-2 py-5 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:border-primary hover:bg-primary/5 transition-all text-slate-400 hover:text-primary"
-        >
+        <button type="button" onClick={() => inputRef.current?.click()} className="w-full flex flex-col items-center gap-2 py-5 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:border-primary hover:bg-primary/5 transition-all text-slate-400 hover:text-primary">
           <UploadCloud className="w-6 h-6" />
           <span className="text-sm font-medium">Click to select file</span>
         </button>
       ) : (
         <div className="space-y-2">
-          <FilePreviewCard
-            file={file}
-            onRemove={() => onChange(null)}
-            onPreview={() => setPreviewOpen(true)}
-          />
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="text-xs text-primary font-semibold hover:underline"
-          >
-            Replace file
-          </button>
+          <FilePreviewCard file={file} onRemove={() => onChange(null)} onPreview={() => setPreviewOpen(true)} />
+          <button type="button" onClick={() => inputRef.current?.click()} className="text-xs text-primary font-semibold hover:underline">Replace file</button>
         </div>
       )}
-
       {previewOpen && previewUrl && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-          onClick={() => setPreviewOpen(false)}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={() => setPreviewOpen(false)}>
           <div className="relative max-w-3xl max-h-[90vh] p-2" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              onClick={() => setPreviewOpen(false)}
-              className="absolute -top-3 -right-3 z-10 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg text-slate-600 hover:text-red-500"
-            >
+            <button type="button" onClick={() => setPreviewOpen(false)} className="absolute -top-3 -right-3 z-10 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg text-slate-600 hover:text-red-500">
               <X className="w-4 h-4" />
             </button>
             <img src={previewUrl} alt={file.name} className="max-h-[85vh] max-w-full rounded-xl shadow-2xl object-contain" />
@@ -174,149 +102,46 @@ function SingleFileUpload({
   );
 }
 
-function MultiFileUpload({
-  label,
-  description,
-  accept,
-  files,
-  onChange,
-}: {
-  label: string;
-  description?: string;
-  accept: string;
-  files: File[];
-  onChange: (files: File[]) => void;
-}) {
+function MultiFileUpload({ label, description, accept, files, onChange }: { label: string; description?: string; accept: string; files: File[]; onChange: (files: File[]) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const previewUrl = previewFile && isImageFile(previewFile) ? URL.createObjectURL(previewFile) : undefined;
-
-  const addFiles = (newFiles: FileList | null) => {
-    if (!newFiles) return;
-    onChange([...files, ...Array.from(newFiles)]);
-  };
-
-  const removeFile = (index: number) => {
-    onChange(files.filter((_, i) => i !== index));
-  };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
         <label className="block text-sm font-semibold text-slate-700">{label}</label>
-        {files.length > 0 && (
-          <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-            {files.length} file{files.length !== 1 ? "s" : ""}
-          </span>
-        )}
+        {files.length > 0 && <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{files.length} file{files.length !== 1 ? "s" : ""}</span>}
       </div>
       {description && <p className="text-xs text-slate-400 mb-2">{description}</p>}
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        multiple
-        className="hidden"
-        onChange={(e) => {
-          addFiles(e.target.files);
-          e.target.value = "";
-        }}
-      />
-
-      {/* File list */}
+      <input ref={inputRef} type="file" accept={accept} multiple className="hidden" onChange={(e) => { onChange([...files, ...Array.from(e.target.files ?? [])]); e.target.value = ""; }} />
       {files.length > 0 && (
         <div className="space-y-2 mb-3">
           {files.map((file, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:border-primary/40 transition-colors group"
-            >
+            <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:border-primary/40 transition-colors group">
               <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-primary flex-shrink-0 overflow-hidden">
-                {isImageFile(file) ? (
-                  <img
-                    src={URL.createObjectURL(file)}
-                    alt={file.name}
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                ) : (
-                  getFileIcon(file)
-                )}
+                {isImageFile(file) ? <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-full object-cover rounded-lg" /> : getFileIcon(file)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800 truncate" title={file.name}>
-                  {file.name}
-                </p>
+                <p className="text-sm font-semibold text-slate-800 truncate" title={file.name}>{file.name}</p>
                 <p className="text-xs text-slate-400">{(file.size / 1024).toFixed(1)} KB</p>
               </div>
               <div className="flex items-center gap-1">
-                {isImageFile(file) && (
-                  <button
-                    type="button"
-                    onClick={() => setPreviewFile(file)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
-                    title="Preview"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => removeFile(i)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                  title="Remove"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                {isImageFile(file) && <button type="button" onClick={() => setPreviewFile(file)} className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"><Eye className="w-4 h-4" /></button>}
+                <button type="button" onClick={() => onChange(files.filter((_, j) => j !== i))} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"><X className="w-4 h-4" /></button>
               </div>
             </div>
           ))}
         </div>
       )}
-
-      {/* Add button */}
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className={cn(
-          "w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed rounded-xl font-semibold text-sm transition-all",
-          files.length === 0
-            ? "border-slate-200 bg-slate-50 text-slate-400 hover:border-primary hover:bg-primary/5 hover:text-primary py-5 flex-col"
-            : "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary"
-        )}
-      >
-        {files.length === 0 ? (
-          <>
-            <UploadCloud className="w-6 h-6" />
-            <span>Click to add files</span>
-          </>
-        ) : (
-          <>
-            <span className="text-lg leading-none">＋</span>
-            <span>Add More Files</span>
-          </>
-        )}
+      <button type="button" onClick={() => inputRef.current?.click()} className={cn("w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed rounded-xl font-semibold text-sm transition-all", files.length === 0 ? "border-slate-200 bg-slate-50 text-slate-400 hover:border-primary hover:bg-primary/5 hover:text-primary py-5 flex-col" : "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary")}>
+        {files.length === 0 ? (<><UploadCloud className="w-6 h-6" /><span>Click to add files</span></>) : (<><span className="text-lg leading-none">＋</span><span>Add More Files</span></>)}
       </button>
-
-      {/* Image preview lightbox */}
       {previewFile && previewUrl && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-          onClick={() => setPreviewFile(null)}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={() => setPreviewFile(null)}>
           <div className="relative max-w-3xl max-h-[90vh] p-2" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              onClick={() => setPreviewFile(null)}
-              className="absolute -top-3 -right-3 z-10 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg text-slate-600 hover:text-red-500"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <img
-              src={previewUrl}
-              alt={previewFile.name}
-              className="max-h-[85vh] max-w-full rounded-xl shadow-2xl object-contain"
-            />
+            <button type="button" onClick={() => setPreviewFile(null)} className="absolute -top-3 -right-3 z-10 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg text-slate-600 hover:text-red-500"><X className="w-4 h-4" /></button>
+            <img src={previewUrl} alt={previewFile.name} className="max-h-[85vh] max-w-full rounded-xl shadow-2xl object-contain" />
           </div>
         </div>
       )}
@@ -324,12 +149,23 @@ function MultiFileUpload({
   );
 }
 
+interface AssetLookupResult {
+  assetType?: string;
+  itSerialNo?: string;
+  lcdSerialNo?: string;
+  model?: string;
+  processor?: string;
+  ram?: string;
+  hdd?: string;
+  policyNumber?: string;
+  assetDescription?: string;
+}
+
 export default function CreateClaim() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const createMutation = useCreateClaim();
   const [isUploading, setIsUploading] = useState(false);
-  const assetTypeOptions = useSettingOptions("assetTypes");
   const effectedPartOptions = useSettingOptions("effectedParts");
 
   const [formData, setFormData] = useState({
@@ -338,6 +174,11 @@ export default function CreateClaim() {
     assetCode: "",
     assetType: "",
     serialNo: "",
+    model: "",
+    processor: "",
+    ram: "",
+    hdd: "",
+    policyNumber: "",
     damageDate: "",
     repairDate: "",
     effectedPart: "",
@@ -357,29 +198,55 @@ export default function CreateClaim() {
     otherDocuments: [],
   });
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
+  const [assetLookupStatus, setAssetLookupStatus] = useState<"idle" | "loading" | "found" | "not_found">("idle");
+  const [assetInfo, setAssetInfo] = useState<AssetLookupResult | null>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const fetchAsset = async () => {
+    const code = formData.assetCode.trim();
+    if (!code) { toast({ variant: "destructive", title: "Enter an Asset Code first" }); return; }
+    setAssetLookupStatus("loading");
+    setAssetInfo(null);
+    try {
+      const res = await fetch(`/api/assets/lookup?assetNo=${encodeURIComponent(code)}`, { credentials: "include" });
+      if (!res.ok) {
+        setAssetLookupStatus("not_found");
+        return;
+      }
+      const data: AssetLookupResult = await res.json();
+      setAssetInfo(data);
+      setAssetLookupStatus("found");
+      setFormData((prev) => ({
+        ...prev,
+        assetType: data.assetType || prev.assetType,
+        serialNo: data.itSerialNo || data.lcdSerialNo || prev.serialNo,
+        model: data.model || prev.model,
+        processor: data.processor || prev.processor,
+        ram: data.ram || prev.ram,
+        hdd: data.hdd || prev.hdd,
+        policyNumber: data.policyNumber || prev.policyNumber,
+      }));
+      toast({ title: "Asset details fetched", description: `Found: ${data.assetDescription || code}` });
+    } catch {
+      setAssetLookupStatus("not_found");
+    }
   };
 
   const uploadFile = async (claimId: number, file: File, documentType: string) => {
     const fd = new FormData();
     fd.append("file", file);
     fd.append("documentType", documentType);
-    const res = await fetch(`/api/documents/upload/${claimId}`, {
-      method: "POST",
-      body: fd,
-      credentials: "include",
-    });
+    const res = await fetch(`/api/documents/upload/${claimId}`, { method: "POST", body: fd, credentials: "include" });
     if (!res.ok) throw new Error(`Failed to upload ${documentType}`);
     return res.json();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const payload = {
       ...formData,
       payableAmount: formData.payableAmount ? parseFloat(formData.payableAmount) : undefined,
@@ -393,41 +260,26 @@ export default function CreateClaim() {
         onSuccess: async (data) => {
           const claimId = data.id;
           const uploads: { file: File; documentType: string }[] = [];
-
-          if (attachments.damageImages)
-            uploads.push({ file: attachments.damageImages, documentType: "Damage Images" });
-          if (attachments.repairImages)
-            uploads.push({ file: attachments.repairImages, documentType: "Repair Images" });
-          if (attachments.quotation)
-            uploads.push({ file: attachments.quotation, documentType: "Quotation" });
-          if (attachments.invoice)
-            uploads.push({ file: attachments.invoice, documentType: "Invoice" });
-          if (attachments.claimForm)
-            uploads.push({ file: attachments.claimForm, documentType: "Claim Form" });
-          attachments.otherDocuments.forEach((file) =>
-            uploads.push({ file, documentType: "Other" })
-          );
+          if (attachments.damageImages) uploads.push({ file: attachments.damageImages, documentType: "Damage Images" });
+          if (attachments.repairImages) uploads.push({ file: attachments.repairImages, documentType: "Repair Images" });
+          if (attachments.quotation) uploads.push({ file: attachments.quotation, documentType: "Quotation" });
+          if (attachments.invoice) uploads.push({ file: attachments.invoice, documentType: "Invoice" });
+          if (attachments.claimForm) uploads.push({ file: attachments.claimForm, documentType: "Claim Form" });
+          attachments.otherDocuments.forEach((file) => uploads.push({ file, documentType: "Other" }));
 
           if (uploads.length > 0) {
             setIsUploading(true);
             try {
-              for (const u of uploads) {
-                await uploadFile(claimId, u.file, u.documentType);
-              }
+              for (const u of uploads) await uploadFile(claimId, u.file, u.documentType);
               toast({ title: "Claim created with documents", description: `${uploads.length} file(s) uploaded.` });
             } catch {
-              toast({
-                variant: "destructive",
-                title: "Claim saved but some files failed to upload",
-                description: "You can upload remaining documents from the claim detail page.",
-              });
+              toast({ variant: "destructive", title: "Claim saved but some files failed to upload", description: "You can upload remaining documents from the claim detail page." });
             } finally {
               setIsUploading(false);
             }
           } else {
             toast({ title: "Claim created successfully" });
           }
-
           setLocation(`/claims/${claimId}`);
         },
         onError: (err) => {
@@ -442,38 +294,93 @@ export default function CreateClaim() {
   return (
     <AppLayout>
       <div className="mb-6">
-        <Link
-          href="/claims"
-          className="inline-flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-indigo-600 mb-4 transition-colors"
-        >
+        <Link href="/claims" className="inline-flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-indigo-600 mb-4 transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back to Claims
         </Link>
         <h1 className="text-2xl font-display font-bold text-slate-900">Create New Claim</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Fill in the details below to initiate a new IT asset insurance claim.
-        </p>
+        <p className="text-sm text-slate-500 mt-1">Fill in the details below to initiate a new IT asset insurance claim.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Basic Information */}
+        {/* Asset Lookup */}
         <div className="card p-6">
           <h2 className="text-base font-display font-bold text-slate-900 border-b border-slate-100 pb-3 mb-5">
-            Basic Information
+            Asset Lookup
           </h2>
+          <p className="text-sm text-slate-500 mb-4">Enter the Asset Code/No to auto-fetch details from the active policy.</p>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <InputField
+                label="Asset Code / Asset No *"
+                name="assetCode"
+                value={formData.assetCode}
+                onChange={handleChange}
+                required
+                placeholder="Enter Asset No or Inventory No"
+              />
+            </div>
+            <div className="pt-7">
+              <button
+                type="button"
+                onClick={fetchAsset}
+                disabled={assetLookupStatus === "loading" || !formData.assetCode.trim()}
+                className="btn-primary disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {assetLookupStatus === "loading" ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Fetching…</>
+                ) : (
+                  <><Search className="w-4 h-4" /> Fetch Asset</>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {assetLookupStatus === "found" && assetInfo && (
+            <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span className="text-sm font-bold text-emerald-800">Asset found — details auto-filled below</span>
+                {assetInfo.policyNumber && (
+                  <span className="ml-auto text-xs text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-semibold">
+                    Policy: {assetInfo.policyNumber}
+                  </span>
+                )}
+              </div>
+              {assetInfo.assetDescription && (
+                <p className="text-xs text-emerald-700 font-medium">{assetInfo.assetDescription}</p>
+              )}
+            </div>
+          )}
+
+          {assetLookupStatus === "not_found" && (
+            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+              <span className="text-sm text-amber-800">Asset not found in the active policy. You can still fill in the details manually.</span>
+            </div>
+          )}
+        </div>
+
+        {/* Basic Information */}
+        <div className="card p-6">
+          <h2 className="text-base font-display font-bold text-slate-900 border-b border-slate-100 pb-3 mb-5">Basic Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <InputField label="Employee ID *" name="employeeId" value={formData.employeeId} onChange={handleChange} required />
             <InputField label="Employee Name *" name="employeeName" value={formData.employeeName} onChange={handleChange} required />
-            <InputField label="Asset Code *" name="assetCode" value={formData.assetCode} onChange={handleChange} required />
-            <SelectField label="Asset Type" name="assetType" value={formData.assetType} onChange={handleChange} options={assetTypeOptions} placeholder="Select asset type" />
+            <InputField label="Asset Type" name="assetType" value={formData.assetType} onChange={handleChange} placeholder="e.g. Laptop, Desktop" />
             <InputField label="Serial No" name="serialNo" value={formData.serialNo} onChange={handleChange} />
+            <InputField label="Model" name="model" value={formData.model} onChange={handleChange} />
+            <InputField label="Processor" name="processor" value={formData.processor} onChange={handleChange} />
+            <InputField label="RAM" name="ram" value={formData.ram} onChange={handleChange} />
+            <InputField label="HDD / Storage" name="hdd" value={formData.hdd} onChange={handleChange} />
+            {formData.policyNumber && (
+              <InputField label="Policy Number" name="policyNumber" value={formData.policyNumber} onChange={handleChange} />
+            )}
           </div>
         </div>
 
         {/* Incident & Financial Details */}
         <div className="card p-6">
-          <h2 className="text-base font-display font-bold text-slate-900 border-b border-slate-100 pb-3 mb-5">
-            Incident & Financial Details
-          </h2>
+          <h2 className="text-base font-display font-bold text-slate-900 border-b border-slate-100 pb-3 mb-5">Incident & Financial Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <InputField label="Damage Date" type="date" name="damageDate" value={formData.damageDate} onChange={handleChange} />
             <InputField label="Repair Date" type="date" name="repairDate" value={formData.repairDate} onChange={handleChange} />
@@ -482,16 +389,9 @@ export default function CreateClaim() {
             <InputField label="Payable Amount (₹)" type="number" step="0.01" name="payableAmount" value={formData.payableAmount} onChange={handleChange} />
             <InputField label="Recover Amount (₹)" type="number" step="0.01" name="recoverAmount" value={formData.recoverAmount} onChange={handleChange} />
             <InputField label="File Charge (₹)" type="number" step="0.01" name="fileCharge" value={formData.fileCharge} onChange={handleChange} />
-
             <div className="md:col-span-2">
               <label className="block text-sm font-semibold text-slate-700 mb-2">Remark</label>
-              <textarea
-                name="remark"
-                value={formData.remark}
-                onChange={handleChange}
-                rows={4}
-                className="input-base"
-              />
+              <textarea name="remark" value={formData.remark} onChange={handleChange} rows={4} className="input-base" />
             </div>
           </div>
         </div>
@@ -500,83 +400,23 @@ export default function CreateClaim() {
         <div className="card p-6">
           <div className="border-b border-slate-100 pb-3 mb-5">
             <h2 className="text-base font-display font-bold text-slate-900">Attachments</h2>
-            <p className="text-sm text-slate-500 mt-1">
-              Upload supporting documents. Images can be previewed before submitting.
-            </p>
+            <p className="text-sm text-slate-500 mt-1">Upload supporting documents.</p>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Damage Images */}
-            <SingleFileUpload
-              label="Damage Images"
-              description="Upload a ZIP archive of damage photos"
-              accept=".zip,application/zip,application/x-zip-compressed"
-              file={attachments.damageImages}
-              onChange={(f) => setAttachments((p) => ({ ...p, damageImages: f }))}
-            />
-
-            {/* Repair Images */}
-            <SingleFileUpload
-              label="Repair Images"
-              description="Upload a ZIP archive of repair photos"
-              accept=".zip,application/zip,application/x-zip-compressed"
-              file={attachments.repairImages}
-              onChange={(f) => setAttachments((p) => ({ ...p, repairImages: f }))}
-            />
-
-            {/* Quotation */}
-            <SingleFileUpload
-              label="Quotation"
-              description="PDF, JPG, or PNG — single file"
-              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-              file={attachments.quotation}
-              onChange={(f) => setAttachments((p) => ({ ...p, quotation: f }))}
-            />
-
-            {/* Invoice */}
-            <SingleFileUpload
-              label="Invoice"
-              description="PDF, JPG, or PNG — single file"
-              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-              file={attachments.invoice}
-              onChange={(f) => setAttachments((p) => ({ ...p, invoice: f }))}
-            />
-
-            {/* Claim Form */}
-            <SingleFileUpload
-              label="Claim Form"
-              description="PDF, JPG, or PNG — single file"
-              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-              file={attachments.claimForm}
-              onChange={(f) => setAttachments((p) => ({ ...p, claimForm: f }))}
-            />
-
-            {/* Other Documents */}
-            <MultiFileUpload
-              label="Other Supporting Documents"
-              description="PDF, JPG, or PNG — multiple files allowed"
-              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-              files={attachments.otherDocuments}
-              onChange={(files) => setAttachments((p) => ({ ...p, otherDocuments: files }))}
-            />
+            <SingleFileUpload label="Damage Images" description="Upload a ZIP archive of damage photos" accept=".zip,application/zip,application/x-zip-compressed" file={attachments.damageImages} onChange={(f) => setAttachments((p) => ({ ...p, damageImages: f }))} />
+            <SingleFileUpload label="Repair Images" description="Upload a ZIP archive of repair photos" accept=".zip,application/zip,application/x-zip-compressed" file={attachments.repairImages} onChange={(f) => setAttachments((p) => ({ ...p, repairImages: f }))} />
+            <SingleFileUpload label="Quotation" description="PDF, JPG, or PNG — single file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" file={attachments.quotation} onChange={(f) => setAttachments((p) => ({ ...p, quotation: f }))} />
+            <SingleFileUpload label="Invoice" description="PDF, JPG, or PNG — single file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" file={attachments.invoice} onChange={(f) => setAttachments((p) => ({ ...p, invoice: f }))} />
+            <SingleFileUpload label="Claim Form" description="PDF, JPG, or PNG — single file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" file={attachments.claimForm} onChange={(f) => setAttachments((p) => ({ ...p, claimForm: f }))} />
+            <MultiFileUpload label="Other Supporting Documents" description="PDF, JPG, or PNG — multiple files allowed" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" files={attachments.otherDocuments} onChange={(files) => setAttachments((p) => ({ ...p, otherDocuments: files }))} />
           </div>
-
-          {/* Upload summary */}
           {(() => {
-            const count =
-              (attachments.damageImages ? 1 : 0) +
-              (attachments.repairImages ? 1 : 0) +
-              (attachments.quotation ? 1 : 0) +
-              (attachments.invoice ? 1 : 0) +
-              (attachments.claimForm ? 1 : 0) +
-              attachments.otherDocuments.length;
+            const count = (attachments.damageImages ? 1 : 0) + (attachments.repairImages ? 1 : 0) + (attachments.quotation ? 1 : 0) + (attachments.invoice ? 1 : 0) + (attachments.claimForm ? 1 : 0) + attachments.otherDocuments.length;
             if (count === 0) return null;
             return (
               <div className="mt-6 flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
                 <FileCheck className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                <span className="text-sm font-semibold text-emerald-700">
-                  {count} file{count !== 1 ? "s" : ""} ready to upload with this claim
-                </span>
+                <span className="text-sm font-semibold text-emerald-700">{count} file{count !== 1 ? "s" : ""} ready to upload with this claim</span>
               </div>
             );
           })()}
@@ -584,25 +424,9 @@ export default function CreateClaim() {
 
         {/* Actions */}
         <div className="flex justify-end gap-3">
-          <Link href="/claims" className="btn-secondary">
-            Cancel
-          </Link>
-          <button
-            type="submit"
-            disabled={isBusy}
-            className="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {isBusy ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {isUploading ? "Uploading…" : "Saving…"}
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                Save Claim
-              </>
-            )}
+          <Link href="/claims" className="btn-secondary">Cancel</Link>
+          <button type="submit" disabled={isBusy} className="btn-primary disabled:opacity-60 disabled:cursor-not-allowed">
+            {isBusy ? (<><Loader2 className="w-4 h-4 animate-spin" />{isUploading ? "Uploading…" : "Saving…"}</>) : (<><Save className="w-4 h-4" />Save Claim</>)}
           </button>
         </div>
       </form>
@@ -613,7 +437,7 @@ export default function CreateClaim() {
 function InputField({ label, ...props }: any) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">{label}</label>
+      <label className="block text-sm font-semibold text-slate-700 mb-2">{label}</label>
       <input className="input-base" {...props} />
     </div>
   );
@@ -622,12 +446,10 @@ function InputField({ label, ...props }: any) {
 function SelectField({ label, options, placeholder, ...props }: any) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">{label}</label>
-      <select className="input-base appearance-none" {...props}>
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map((opt: string) => (
-          <option key={opt} value={opt}>{opt}</option>
-        ))}
+      <label className="block text-sm font-semibold text-slate-700 mb-2">{label}</label>
+      <select className="input-base" {...props}>
+        <option value="">{placeholder}</option>
+        {options.map((o: string) => <option key={o} value={o}>{o}</option>)}
       </select>
     </div>
   );
