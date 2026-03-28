@@ -1,14 +1,23 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useCreateClaim } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Save, Loader2, UploadCloud, X, FileText, Archive,
-  Image as ImageIcon, FileCheck, Eye, Search, CheckCircle, AlertCircle
+  Image as ImageIcon, FileCheck, Eye, CheckCircle, AlertCircle
 } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
 
 interface SettingOption { id: number; value: string; }
 
@@ -175,9 +184,6 @@ export default function CreateClaim() {
     assetType: "",
     serialNo: "",
     model: "",
-    processor: "",
-    ram: "",
-    hdd: "",
     policyNumber: "",
     damageDate: "",
     repairDate: "",
@@ -200,23 +206,24 @@ export default function CreateClaim() {
 
   const [assetLookupStatus, setAssetLookupStatus] = useState<"idle" | "loading" | "found" | "not_found">("idle");
   const [assetInfo, setAssetInfo] = useState<AssetLookupResult | null>(null);
+  const debouncedAssetCode = useDebounce(formData.assetCode, 600);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "assetCode") {
+      setAssetLookupStatus("idle");
+      setAssetInfo(null);
+    }
   };
 
-  const fetchAsset = async () => {
-    const code = formData.assetCode.trim();
-    if (!code) { toast({ variant: "destructive", title: "Enter an Asset Code first" }); return; }
+  const fetchAsset = useCallback(async (code: string) => {
+    if (!code.trim()) { setAssetLookupStatus("idle"); setAssetInfo(null); return; }
     setAssetLookupStatus("loading");
     setAssetInfo(null);
     try {
-      const res = await fetch(`/api/assets/lookup?assetNo=${encodeURIComponent(code)}`, { credentials: "include" });
-      if (!res.ok) {
-        setAssetLookupStatus("not_found");
-        return;
-      }
+      const res = await fetch(`/api/assets/lookup?assetNo=${encodeURIComponent(code.trim())}`, { credentials: "include" });
+      if (!res.ok) { setAssetLookupStatus("not_found"); return; }
       const data: AssetLookupResult = await res.json();
       setAssetInfo(data);
       setAssetLookupStatus("found");
@@ -225,16 +232,16 @@ export default function CreateClaim() {
         assetType: data.assetType || prev.assetType,
         serialNo: data.itSerialNo || data.lcdSerialNo || prev.serialNo,
         model: data.model || prev.model,
-        processor: data.processor || prev.processor,
-        ram: data.ram || prev.ram,
-        hdd: data.hdd || prev.hdd,
         policyNumber: data.policyNumber || prev.policyNumber,
       }));
-      toast({ title: "Asset details fetched", description: `Found: ${data.assetDescription || code}` });
     } catch {
       setAssetLookupStatus("not_found");
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchAsset(debouncedAssetCode);
+  }, [debouncedAssetCode, fetchAsset]);
 
   const uploadFile = async (claimId: number, file: File, documentType: string) => {
     const fd = new FormData();
@@ -302,76 +309,54 @@ export default function CreateClaim() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Asset Lookup */}
-        <div className="card p-6">
-          <h2 className="text-base font-display font-bold text-slate-900 border-b border-slate-100 pb-3 mb-5">
-            Asset Lookup
-          </h2>
-          <p className="text-sm text-slate-500 mb-4">Enter the Asset Code/No to auto-fetch details from the active policy.</p>
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <InputField
-                label="Asset Code / Asset No *"
-                name="assetCode"
-                value={formData.assetCode}
-                onChange={handleChange}
-                required
-                placeholder="Enter Asset No or Inventory No"
-              />
-            </div>
-            <div className="pt-7">
-              <button
-                type="button"
-                onClick={fetchAsset}
-                disabled={assetLookupStatus === "loading" || !formData.assetCode.trim()}
-                className="btn-primary disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
-              >
-                {assetLookupStatus === "loading" ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Fetching…</>
-                ) : (
-                  <><Search className="w-4 h-4" /> Fetch Asset</>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {assetLookupStatus === "found" && assetInfo && (
-            <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-              <div className="flex items-center gap-2 mb-3">
-                <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span className="text-sm font-bold text-emerald-800">Asset found — details auto-filled below</span>
-                {assetInfo.policyNumber && (
-                  <span className="ml-auto text-xs text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-semibold">
-                    Policy: {assetInfo.policyNumber}
-                  </span>
-                )}
-              </div>
-              {assetInfo.assetDescription && (
-                <p className="text-xs text-emerald-700 font-medium">{assetInfo.assetDescription}</p>
-              )}
-            </div>
-          )}
-
-          {assetLookupStatus === "not_found" && (
-            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-              <span className="text-sm text-amber-800">Asset not found in the active policy. You can still fill in the details manually.</span>
-            </div>
-          )}
-        </div>
-
         {/* Basic Information */}
         <div className="card p-6">
           <h2 className="text-base font-display font-bold text-slate-900 border-b border-slate-100 pb-3 mb-5">Basic Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <InputField label="Employee ID *" name="employeeId" value={formData.employeeId} onChange={handleChange} required />
             <InputField label="Employee Name *" name="employeeName" value={formData.employeeName} onChange={handleChange} required />
+
+            {/* Asset Code with inline auto-fetch */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Asset Code / Asset No *</label>
+              <div className="relative">
+                <input
+                  className={cn(
+                    "input-base pr-10",
+                    assetLookupStatus === "found" && "border-emerald-400 focus:border-emerald-500",
+                    assetLookupStatus === "not_found" && "border-amber-400 focus:border-amber-500"
+                  )}
+                  name="assetCode"
+                  value={formData.assetCode}
+                  onChange={handleChange}
+                  required
+                  placeholder="Type or paste Asset No / Inventory No — details will auto-fill"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  {assetLookupStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+                  {assetLookupStatus === "found" && <CheckCircle className="w-4 h-4 text-emerald-500" />}
+                  {assetLookupStatus === "not_found" && <AlertCircle className="w-4 h-4 text-amber-500" />}
+                </div>
+              </div>
+              {assetLookupStatus === "found" && assetInfo && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-emerald-700">
+                  <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="font-medium">Asset found — details auto-filled</span>
+                  {assetInfo.assetDescription && <span className="text-emerald-600 truncate">· {assetInfo.assetDescription}</span>}
+                  {assetInfo.policyNumber && <span className="ml-auto text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold whitespace-nowrap">Policy: {assetInfo.policyNumber}</span>}
+                </div>
+              )}
+              {assetLookupStatus === "not_found" && (
+                <p className="mt-2 flex items-center gap-1.5 text-sm text-amber-700">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  Asset not found in the active policy — you can fill in the details manually.
+                </p>
+              )}
+            </div>
+
             <InputField label="Asset Type" name="assetType" value={formData.assetType} onChange={handleChange} placeholder="e.g. Laptop, Desktop" />
             <InputField label="Serial No" name="serialNo" value={formData.serialNo} onChange={handleChange} />
             <InputField label="Model" name="model" value={formData.model} onChange={handleChange} />
-            <InputField label="Processor" name="processor" value={formData.processor} onChange={handleChange} />
-            <InputField label="RAM" name="ram" value={formData.ram} onChange={handleChange} />
-            <InputField label="HDD / Storage" name="hdd" value={formData.hdd} onChange={handleChange} />
             {formData.policyNumber && (
               <InputField label="Policy Number" name="policyNumber" value={formData.policyNumber} onChange={handleChange} />
             )}
