@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Plus, Trash2, Settings, Loader2, Tag, Cpu, Users2, Activity,
+  Plus, Trash2, Settings, Loader2, Tag, Users2, Activity,
   Mail, Eye, EyeOff, FlaskConical, CheckCircle, XCircle,
   ToggleLeft, ToggleRight, Pencil, Check, X, ChevronRight,
   Database, FileText, UploadCloud, Edit2, Shield, Download,
@@ -18,11 +18,6 @@ interface CategoryConfig {
 }
 
 const CATEGORIES: CategoryConfig[] = [
-  {
-    key: "assetTypes", label: "Asset Types",
-    description: "Types of IT assets used in claim forms",
-    icon: <Cpu className="w-4 h-4" />, accent: "indigo", dot: "bg-indigo-500",
-  },
   {
     key: "effectedParts", label: "Affected Parts",
     description: "Parts damaged or affected in a claim",
