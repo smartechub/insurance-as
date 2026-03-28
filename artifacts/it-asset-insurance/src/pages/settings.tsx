@@ -994,8 +994,12 @@ function EmployeeDetailsPanel() {
   const loadEmployees = () => {
     setLoading(true);
     fetch("/api/employees", { credentials: "include" })
-      .then((r) => r.json())
-      .then(setEmployees)
+      .then((r) => {
+        if (r.status === 401) { window.location.href = "/login"; return []; }
+        if (!r.ok) throw new Error("Failed to load");
+        return r.json();
+      })
+      .then((data) => { if (Array.isArray(data)) setEmployees(data); })
       .catch(() => toast({ variant: "destructive", title: "Failed to load employees" }))
       .finally(() => setLoading(false));
   };
