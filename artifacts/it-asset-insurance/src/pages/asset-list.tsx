@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {
   Loader2, Search, X, Database, ChevronLeft, ChevronRight,
-  AlertCircle, Download, ChevronsLeft, ChevronsRight, SlidersHorizontal, ChevronDown
+  AlertCircle, Download, ChevronsLeft, ChevronsRight,
+  SlidersHorizontal, ChevronDown, Eye
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -58,13 +59,13 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
-/** Convert Excel serial date number to readable string. */
 function excelDateToString(val?: string): string {
   if (!val) return "—";
   const n = Number(val);
   if (!isNaN(n) && n > 40000) {
-    const d = new Date((n - 25569) * 86400 * 1000);
-    return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    return new Date((n - 25569) * 86400 * 1000).toLocaleDateString("en-GB", {
+      day: "2-digit", month: "short", year: "numeric",
+    });
   }
   return val;
 }
@@ -75,14 +76,108 @@ function numFmt(val?: string): string {
   return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(n);
 }
 
-function Cell({ value, className }: { value?: string | null; className?: string }) {
+function val(v?: string) { return v || "—"; }
+
+/* ── Full-detail slide-over panel ─────────────────────────────── */
+function DetailPanel({ asset, onClose }: { asset: Asset; onClose: () => void }) {
+  const sections: { title: string; rows: [string, string][] }[] = [
+    {
+      title: "Identification",
+      rows: [
+        ["Inventory No.", val(asset.inventoryNo)],
+        ["Asset No", val(asset.assetNo)],
+        ["Sr No.", val(asset.srNo)],
+        ["Asset Class", val(asset.assetClass)],
+        ["Asset Class (Short Name)", val(asset.assetClassShortName)],
+        ["Asset Description", val(asset.assetDescription)],
+        ["Capitalization Date", excelDateToString(asset.capitalizationDate)],
+      ],
+    },
+    {
+      title: "Classification",
+      rows: [
+        ["Asset Type", val(asset.assetType)],
+        ["Asset Sub Type", val(asset.assetSubType)],
+        ["SBU", val(asset.sbu)],
+        ["Plant", val(asset.plant)],
+        ["Quantity", val(asset.quantity)],
+        ["Asset Criticality", val(asset.assetCriticality)],
+      ],
+    },
+    {
+      title: "Hardware Specs",
+      rows: [
+        ["Model", val(asset.model)],
+        ["Processor", val(asset.processor)],
+        ["RAM", val(asset.ram)],
+        ["HDD", val(asset.hdd)],
+        ["IT Serial No", val(asset.itSerialNo)],
+        ["LCD Serial No", val(asset.lcdSerialNo)],
+      ],
+    },
+    {
+      title: "Financial & Status",
+      rows: [
+        ["Cost (Local)", numFmt(asset.costLocal)],
+        ["NBV (Local)", numFmt(asset.nbvLocal)],
+        ["Condition", val(asset.condition)],
+        ["Inventory On", excelDateToString(asset.inventoryOn)],
+      ],
+    },
+  ];
+
   return (
-    <td className={cn("px-3 py-2.5 text-sm text-slate-700 whitespace-nowrap border-r border-slate-100 last:border-r-0", className)}>
-      {value || <span className="text-slate-300">—</span>}
-    </td>
+    <div className="fixed inset-0 z-50 flex" onClick={onClose}>
+      {/* backdrop */}
+      <div className="flex-1 bg-black/40 backdrop-blur-sm" />
+      {/* panel */}
+      <div
+        className="w-full max-w-md bg-white shadow-2xl flex flex-col h-full overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* header */}
+        <div className="flex items-start justify-between p-5 border-b border-slate-100 bg-slate-50">
+          <div>
+            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1">Asset Detail</p>
+            <h2 className="text-lg font-bold text-slate-900 font-mono">{asset.assetNo || "—"}</h2>
+            <p className="text-sm text-slate-500 mt-0.5">{asset.inventoryNo || ""}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors mt-0.5"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {sections.map((section) => (
+            <div key={section.title}>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{section.title}</h3>
+              <div className="bg-slate-50 rounded-xl overflow-hidden border border-slate-100">
+                {section.rows.map(([label, value], i) => (
+                  <div
+                    key={label}
+                    className={cn(
+                      "flex items-start gap-3 px-4 py-2.5",
+                      i !== section.rows.length - 1 && "border-b border-slate-100"
+                    )}
+                  >
+                    <span className="text-xs text-slate-500 w-40 flex-shrink-0 pt-0.5">{label}</span>
+                    <span className="text-sm font-medium text-slate-800 break-words min-w-0">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
+/* ── Plant autocomplete ────────────────────────────────────────── */
 function PlantSearch({ value, onChange, plants }: { value: string; onChange: (v: string) => void; plants: string[] }) {
   const [input, setInput] = useState(value);
   const [open, setOpen] = useState(false);
@@ -112,8 +207,10 @@ function PlantSearch({ value, onChange, plants }: { value: string; onChange: (v:
       {open && filtered.length > 0 && (
         <div className="absolute z-30 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
           {filtered.map((p) => (
-            <button key={p} className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 hover:text-indigo-700 transition-colors truncate"
-              onClick={() => { onChange(p); setInput(p); setOpen(false); }}>{p}</button>
+            <button key={p}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 hover:text-indigo-700 transition-colors truncate"
+              onClick={() => { onChange(p); setInput(p); setOpen(false); }}
+            >{p}</button>
           ))}
         </div>
       )}
@@ -122,32 +219,6 @@ function PlantSearch({ value, onChange, plants }: { value: string; onChange: (v:
 }
 
 const PAGE_SIZES = [20, 50, 100];
-
-const COLUMNS: { key: keyof Asset; label: string; width: string; sticky?: boolean; format?: (v?: string) => string }[] = [
-  { key: "srNo",               label: "Sr No.",                width: "60px",  sticky: true },
-  { key: "inventoryNo",        label: "Inventory No.",         width: "130px" },
-  { key: "assetNo",            label: "Asset No",              width: "160px" },
-  { key: "capitalizationDate", label: "Capitalization Date",   width: "140px", format: excelDateToString },
-  { key: "assetClass",         label: "Asset Class",           width: "160px" },
-  { key: "assetClassShortName",label: "Asset Class (Short Name)", width: "170px" },
-  { key: "assetDescription",   label: "Asset Description",     width: "200px" },
-  { key: "assetType",          label: "Asset Type",            width: "130px" },
-  { key: "assetSubType",       label: "Asset Sub Type",        width: "120px" },
-  { key: "sbu",                label: "SBU",                   width: "120px" },
-  { key: "plant",              label: "Plant",                 width: "130px" },
-  { key: "quantity",           label: "Quantity",              width: "80px"  },
-  { key: "costLocal",          label: "Cost (Local)",          width: "110px", format: numFmt },
-  { key: "nbvLocal",           label: "NBV (Local)",           width: "110px", format: numFmt },
-  { key: "condition",          label: "Condition",             width: "190px" },
-  { key: "assetCriticality",   label: "Asset Criticality",     width: "130px" },
-  { key: "inventoryOn",        label: "Inventory On",          width: "130px", format: excelDateToString },
-  { key: "lcdSerialNo",        label: "LCD Serial No",         width: "140px" },
-  { key: "itSerialNo",         label: "IT Serial No",          width: "140px" },
-  { key: "processor",          label: "Processor",             width: "220px" },
-  { key: "hdd",                label: "HDD",                   width: "120px" },
-  { key: "ram",                label: "RAM",                   width: "100px" },
-  { key: "model",              label: "Model",                 width: "180px" },
-];
 
 export default function AssetList() {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -166,6 +237,7 @@ export default function AssetList() {
   const [showFilters, setShowFilters] = useState(false);
   const [jumpPage, setJumpPage] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [selected, setSelected] = useState<Asset | null>(null);
 
   const debouncedSearch = useDebounce(search, 400);
 
@@ -192,9 +264,7 @@ export default function AssetList() {
       setTotal(data.total);
       setTotalPages(data.totalPages);
       setActivePolicy(data.activePolicy);
-    } catch {} finally {
-      setLoading(false);
-    }
+    } catch {} finally { setLoading(false); }
   }, [page, debouncedSearch, assetType, plant, condition, sbu, limit]);
 
   useEffect(() => { fetchFilters(); }, [fetchFilters]);
@@ -217,13 +287,10 @@ export default function AssetList() {
       const res = await fetch(`/api/assets?${params}`, { credentials: "include" });
       if (!res.ok) return;
       const data: AssetsResponse = await res.json();
-      const headers = COLUMNS.map((c) => c.label);
+      const headers = ["Inventory No.", "Asset No", "Asset Type", "Asset Sub Type", "SBU", "Plant", "LCD Serial No", "IT Serial No", "Model"];
       const rows = data.assets.map((a) =>
-        COLUMNS.map((c) => {
-          const raw = a[c.key];
-          const val = c.format ? c.format(raw ?? undefined) : (raw ?? "");
-          return `"${String(val).replace(/"/g, '""')}"`;
-        }).join(",")
+        [a.inventoryNo, a.assetNo, a.assetType, a.assetSubType, a.sbu, a.plant, a.lcdSerialNo, a.itSerialNo, a.model]
+          .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")
       );
       const csv = [headers.join(","), ...rows].join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
@@ -253,8 +320,7 @@ export default function AssetList() {
               ? <>Active policy: <span className="font-semibold text-indigo-600">{activePolicy.policyNumber}</span>
                   {activePolicy.startDate && activePolicy.endDate && (
                     <span className="text-slate-400"> · {activePolicy.startDate} → {activePolicy.endDate}</span>
-                  )}
-                </>
+                  )}</>
               : "No active policy. Contact an admin to activate a policy."}
           </p>
         </div>
@@ -307,6 +373,7 @@ export default function AssetList() {
                   <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showFilters && "rotate-180")} />
                 </button>
               </div>
+
               {showFilters && (
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
                   <select className="input-base w-auto min-w-[140px]" value={assetType} onChange={(e) => setAssetType(e.target.value)}>
@@ -336,10 +403,8 @@ export default function AssetList() {
           <div className="flex items-center justify-between mb-3 gap-4">
             <p className="text-sm text-slate-500">
               {loading ? "Loading…" : (
-                <>
-                  Showing <span className="font-semibold text-slate-800">{((page - 1) * limit) + 1}–{Math.min(page * limit, total)}</span> of{" "}
-                  <span className="font-semibold text-slate-800">{total.toLocaleString()}</span> assets
-                </>
+                <>Showing <span className="font-semibold text-slate-800">{((page - 1) * limit) + 1}–{Math.min(page * limit, total)}</span> of{" "}
+                  <span className="font-semibold text-slate-800">{total.toLocaleString()}</span> assets</>
               )}
             </p>
             <div className="flex items-center gap-2">
@@ -363,52 +428,48 @@ export default function AssetList() {
                 {hasFilters && <p className="text-slate-400 text-sm mt-1">Try adjusting your search or filters.</p>}
               </div>
             ) : (
-              <div className="overflow-x-auto" style={{ maxHeight: "calc(100vh - 320px)", overflowY: "auto" }}>
-                <table className="text-sm border-collapse" style={{ tableLayout: "fixed", width: COLUMNS.reduce((acc, c) => acc + parseInt(c.width), 0) + "px" }}>
-                  <thead className="sticky top-0 z-20">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
                     <tr className="bg-slate-800 text-white">
-                      {COLUMNS.map((col, i) => (
-                        <th
-                          key={col.key}
-                          className={cn(
-                            "text-left px-3 py-3 text-xs font-bold uppercase tracking-wider whitespace-nowrap border-r border-slate-700 last:border-r-0",
-                            i === 0 && "sticky left-0 z-30 bg-slate-800"
-                          )}
-                          style={{ width: col.width, minWidth: col.width }}
-                        >
-                          {col.label}
+                      {[
+                        "Inventory No.", "Asset No", "Asset Type", "Asset Sub Type",
+                        "SBU", "Plant", "LCD Serial No", "IT Serial No", "Model", ""
+                      ].map((h) => (
+                        <th key={h} className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider whitespace-nowrap border-r border-slate-700 last:border-r-0">
+                          {h}
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {assets.map((asset, idx) => (
-                      <tr
-                        key={asset.id}
-                        className={cn("border-b border-slate-100 hover:bg-indigo-50/40 transition-colors", idx % 2 === 0 ? "bg-white" : "bg-slate-50/50")}
-                      >
-                        {COLUMNS.map((col, i) => {
-                          const raw = asset[col.key];
-                          const display = col.format ? col.format(raw ?? undefined) : (raw ?? "");
-                          return (
-                            <td
-                              key={col.key}
-                              title={raw ?? ""}
-                              className={cn(
-                                "px-3 py-2.5 text-sm whitespace-nowrap border-r border-slate-100 last:border-r-0 overflow-hidden text-ellipsis",
-                                i === 0 && "sticky left-0 z-10 bg-inherit font-bold text-slate-500 text-center",
-                                col.key === "assetNo" && "font-mono text-indigo-700 font-semibold",
-                                col.key === "inventoryNo" && "font-mono text-slate-500",
-                                col.key === "itSerialNo" || col.key === "lcdSerialNo" ? "font-mono text-slate-500" : "",
-                                (col.key === "costLocal" || col.key === "nbvLocal") && "text-right font-mono",
-                                col.key === "quantity" && "text-center"
-                              )}
-                              style={{ width: col.width, minWidth: col.width }}
-                            >
-                              {display || <span className="text-slate-300">—</span>}
-                            </td>
-                          );
-                        })}
+                      <tr key={asset.id} className={cn(
+                        "border-b border-slate-100 hover:bg-indigo-50/40 transition-colors",
+                        idx % 2 === 0 ? "bg-white" : "bg-slate-50/50"
+                      )}>
+                        <td className="px-4 py-3 font-mono text-xs text-slate-500 whitespace-nowrap">{asset.inventoryNo || <span className="text-slate-300">—</span>}</td>
+                        <td className="px-4 py-3 font-mono text-xs font-bold text-indigo-700 whitespace-nowrap">{asset.assetNo || <span className="text-slate-300">—</span>}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {asset.assetType
+                            ? <span className="inline-block px-2.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-semibold">{asset.assetType}</span>
+                            : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600 text-xs whitespace-nowrap">{asset.assetSubType || <span className="text-slate-300">—</span>}</td>
+                        <td className="px-4 py-3 text-slate-600 text-xs whitespace-nowrap">{asset.sbu || <span className="text-slate-300">—</span>}</td>
+                        <td className="px-4 py-3 text-slate-600 text-xs whitespace-nowrap">{asset.plant || <span className="text-slate-300">—</span>}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-slate-500 whitespace-nowrap">{asset.lcdSerialNo || <span className="text-slate-300">—</span>}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-slate-500 whitespace-nowrap">{asset.itSerialNo || <span className="text-slate-300">—</span>}</td>
+                        <td className="px-4 py-3 text-slate-700 text-xs whitespace-nowrap max-w-[160px] overflow-hidden text-ellipsis" title={asset.model}>{asset.model || <span className="text-slate-300">—</span>}</td>
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => setSelected(asset)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            View
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -475,6 +536,9 @@ export default function AssetList() {
           )}
         </>
       )}
+
+      {/* Detail panel */}
+      {selected && <DetailPanel asset={selected} onClose={() => setSelected(null)} />}
     </AppLayout>
   );
 }
