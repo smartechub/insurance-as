@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { motion } from "framer-motion";
 import {
@@ -117,6 +117,8 @@ export default function AuditLog() {
       setLoading(false);
     }
   }, [page, search, category, from, to]);
+
+  useEffect(() => { load(); }, []);
 
   const handleSearch = () => { setPage(1); load({ page: 1 }); };
   const handleClear = () => {
