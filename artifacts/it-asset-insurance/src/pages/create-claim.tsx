@@ -342,7 +342,6 @@ export default function CreateClaim() {
                 <div className="mt-2 flex items-center gap-2 text-sm text-emerald-700">
                   <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
                   <span className="font-medium">Asset found — details auto-filled</span>
-                  {assetInfo.assetDescription && <span className="text-emerald-600 truncate">· {assetInfo.assetDescription}</span>}
                   {assetInfo.policyNumber && <span className="ml-auto text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold whitespace-nowrap">Policy: {assetInfo.policyNumber}</span>}
                 </div>
               )}
