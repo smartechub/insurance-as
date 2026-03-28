@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { motion } from "framer-motion";
-import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
-import lightLogo from "@assets/Light_Logo_1774345301483.png";
+import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, ShieldCheck, FileStack, BarChart3, Users } from "lucide-react";
 import { useLogin, useGetMe } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -44,8 +43,11 @@ export default function Login() {
           className="w-full max-w-[400px]"
         >
           {/* Brand */}
-          <div className="flex items-center mb-10">
-            <img src={lightLogo} alt="Light" className="h-12 w-auto" />
+          <div className="flex items-center gap-2.5 mb-10">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-lg font-display font-bold text-slate-900 tracking-tight">AssetGuard</span>
           </div>
 
           {/* Heading */}
@@ -137,35 +139,53 @@ export default function Login() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-indigo-800/10 blur-3xl" />
         </div>
 
-        {/* Top logo */}
-        <div className="relative flex items-center">
-          <img src={lightLogo} alt="Light" className="h-10 w-auto brightness-0 invert" />
+        {/* Top branding — text only, no logo */}
+        <div className="relative flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-indigo-500/30 border border-indigo-400/30 flex items-center justify-center">
+            <ShieldCheck className="w-4 h-4 text-indigo-300" />
+          </div>
+          <span className="text-white font-display font-bold text-base tracking-tight">AssetGuard</span>
         </div>
 
         {/* Feature list */}
-        <div className="relative space-y-6">
-          {[
-            { title: "Claim Management", desc: "Create, track, and manage IT asset insurance claims end-to-end." },
-            { title: "Document Handling", desc: "Securely upload invoices, photos, and supporting documents." },
-            { title: "Analytics Dashboard", desc: "Real-time metrics and visual analytics for decision-making." },
-            { title: "Role-based Access", desc: "Granular permissions for admins and employees." },
-          ].map((f, i) => (
-            <motion.div
-              key={f.title}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 + i * 0.1, duration: 0.4 }}
-              className="flex gap-4"
-            >
-              <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-400/20 flex items-center justify-center shrink-0 mt-0.5">
-                <div className="w-2 h-2 rounded-full bg-indigo-400" />
-              </div>
-              <div>
-                <div className="text-white font-semibold text-sm mb-0.5">{f.title}</div>
-                <div className="text-slate-400 text-sm leading-relaxed">{f.desc}</div>
-              </div>
-            </motion.div>
-          ))}
+        <div className="relative">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05, duration: 0.4 }}
+            className="mb-8"
+          >
+            <h2 className="text-white text-2xl font-display font-bold leading-snug mb-2">
+              Everything you need to manage IT insurance
+            </h2>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              A single platform for claims, documents, analytics, and team access control.
+            </p>
+          </motion.div>
+          <div className="space-y-5">
+            {[
+              { icon: ShieldCheck, title: "Claim Management", desc: "Create, track, and manage IT asset insurance claims end-to-end." },
+              { icon: FileStack,   title: "Document Handling", desc: "Securely upload invoices, photos, and supporting documents." },
+              { icon: BarChart3,   title: "Analytics Dashboard", desc: "Real-time metrics and visual analytics for decision-making." },
+              { icon: Users,       title: "Role-based Access", desc: "Granular permissions for admins and employees." },
+            ].map((f, i) => (
+              <motion.div
+                key={f.title}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.15 + i * 0.1, duration: 0.4 }}
+                className="flex gap-4"
+              >
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-400/20 flex items-center justify-center shrink-0 mt-0.5">
+                  <f.icon className="w-4 h-4 text-indigo-300" />
+                </div>
+                <div>
+                  <div className="text-white font-semibold text-sm mb-0.5">{f.title}</div>
+                  <div className="text-slate-400 text-sm leading-relaxed">{f.desc}</div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
 
         {/* Bottom tag */}
