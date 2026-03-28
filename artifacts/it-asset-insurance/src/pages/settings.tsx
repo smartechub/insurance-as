@@ -705,6 +705,7 @@ function PolicyManagementPanel() {
                   <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Enable / Disable</th>
                   <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Period</th>
                   <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Assets</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Asset Excel</th>
                   <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">PDF</th>
                   <th className="text-right px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -741,6 +742,15 @@ function PolicyManagementPanel() {
                       </span>
                     </td>
                     <td className="px-5 py-4">
+                      <button
+                        onClick={() => setExcelPolicy(policy)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200"
+                      >
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        {policy.assetCount > 0 ? "Re-upload Excel" : "Upload Excel"}
+                      </button>
+                    </td>
+                    <td className="px-5 py-4">
                       {policy.pdfFilePath ? (
                         <button onClick={() => setPdfPolicy(policy)} className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-semibold">
                           <Eye className="w-3.5 h-3.5" /> Preview
@@ -749,13 +759,10 @@ function PolicyManagementPanel() {
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => setExcelPolicy(policy)} title="Upload Asset Excel" className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-                          <Database className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => setEditPolicy(policy)} title="Edit" className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+                        <button onClick={() => setEditPolicy(policy)} title="Edit Policy" className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(policy)} title="Delete" disabled={policy.isActive} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                        <button onClick={() => handleDelete(policy)} title="Delete Policy" disabled={policy.isActive} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
